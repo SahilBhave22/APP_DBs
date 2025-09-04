@@ -13,7 +13,7 @@ from langchain.schema import SystemMessage, HumanMessage
 from langgraph.graph import StateGraph, END
 import sqlglot
 
-from google.cloud.sql.connector import Connector, IPTypes
+#from google.cloud.sql.connector import Connector, IPTypes
 
 
 # ----------------------------
