@@ -15,8 +15,16 @@ OPENAI_KEY     = st.secrets.get("openai_api_key")
 
 DB_PASSWORD = st.secrets.get("db_password") 
 password = quote_plus(DB_PASSWORD)
+
+
+PUBLIC_IP = "35.226.191.103"  # Cloud SQL public IP
+DB_USER   = "postgres"
+DB_PASS   = "Scb#12345678"
+DB_NAME   = "aact"
+
 FAERS_DB_URL =  f"postgresql://postgres:{password}@127.0.0.1:5432/FDA_AERS"
-AACT_DB_URL =  f"postgresql://postgres:{password}@127.0.0.1:5432/AACT_local"
+#AACT_DB_URL =  f"postgresql://postgres:{password}@127.0.0.1:5432/AACT_local"
+AACT_DB_URL = f"postgresql+psycopg2://{DB_USER}:{DB_PASS}@{PUBLIC_IP}:5432/{DB_NAME}?sslmode=require&connect_timeout=120"
 
 
 #FAERS_DB_URL   = st.secrets.get("faers_db_url")

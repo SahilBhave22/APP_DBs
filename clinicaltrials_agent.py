@@ -13,6 +13,8 @@ from langchain.schema import SystemMessage, HumanMessage
 from langgraph.graph import StateGraph, END
 import sqlglot
 
+from google.cloud.sql.connector import Connector, IPTypes
+
 
 # ----------------------------
 # Helpers & validation
@@ -75,14 +77,30 @@ class AgentState(TypedDict):
 # ----------------------------
 # DB helpers
 # ----------------------------
+
+# INSTANCE = "aesthetic-guild-471115-a9:us-central1:app-db"
+# DB_USER, DB_PASS, DB_NAME = "postgres", "Scb#12345678", "aact"
+
+# connector = Connector()
+# def getconn():
+#     return connector.connect(
+#         INSTANCE, driver="pg8000",
+#         user=DB_USER, password=DB_PASS, db=DB_NAME,
+#         ip_type=IPTypes.PUBLIC,   # use PRIVATE if instance is private-only
+#         timeout=60,
+#     )
+
 @lru_cache(maxsize=4)
 def get_engine_cached(clinicaltrials_db_url: str):
+    # return create_engine("postgresql+pg8000://", creator=getconn,
+    #                    pool_pre_ping=True, pool_recycle=1800, pool_timeout=60)
     return create_engine(clinicaltrials_db_url, pool_pre_ping=True)
 
 def exec_sql(clinicaltrials_db_url: str, sql: str) -> pd.DataFrame:
     eng = get_engine_cached(clinicaltrials_db_url)
     with eng.connect() as conn:
         return pd.read_sql(text(sql), conn)
+
 
 
 # ----------------------------
