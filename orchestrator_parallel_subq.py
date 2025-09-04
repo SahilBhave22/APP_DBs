@@ -97,13 +97,7 @@ Return JSON ONLY NO TRAILING CHARACTERS:
 """
     try:
         resp = llm.invoke([{"role":"system","content":system},{"role":"user","content":user}]).content
-        print("Response here--")
-        #json_pattern = r'\{.*?\}'
-        #json_match = re.search(json_pattern, resp)
-        print(resp)
-        #print(json_match)
         resp = re.sub(r"^```(?:json)?|```$", "", resp.strip(), flags=re.MULTILINE).strip()
-        #print("response ends--")
         data = json.loads(resp)
     except Exception as e:
         print(e)
