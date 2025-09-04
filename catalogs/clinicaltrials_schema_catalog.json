@@ -1,0 +1,1681 @@
+{
+  "version": "0.1-stub",
+  "generated_at": "2025-08-27T18:27:27.153615+00:00Z",
+  "dialect": "postgresql",
+  "description": "AACT/ClinicalTrials.gov schema catalog (auto-assembled from user-provided documentation). Replace/extend with your exact schema.",
+  "tables": [
+    {
+      "name": "public.drug_trials",
+      "description": "Trial ids for relevant trials per drug",
+      "primary_key": [
+        "nct_id"
+      ],
+      "columns": [
+        {
+          "name": "nct_id",
+          "type": "character varying",
+          "description": "foreign key referencing studies.nct_id"
+        },
+        {
+          "name": "brand_name",
+          "type": "character varying",
+          "description": "Brand name for the drug"
+        },
+        {
+          "name": "units",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "scope",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "count",
+          "type": "integer",
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "public.drug_trial_outcomes_pro",
+      "description": "Trial ids for relevant trials per drug having a Patient reported outcome (PRO) measure.",
+      "primary_key": [
+        "nct_id"
+      ],
+      "columns": [
+        {
+          "name": "nct_id",
+          "type": "character varying",
+          "description": "foreign key referencing studies.nct_id"
+        },
+        {
+          "name": "brand_name",
+          "type": "character varying",
+          "description": "Brand name for the drug"
+        },
+        {
+          "name": "instrument_name",
+          "type": "character varying",
+          "description": "Name of the PRO instrument used to measure the outcome."
+        },
+        {
+          "name": "outcome_id",
+          "type": "character varying",
+          "description": "id for specific outcome within the trial. Connects to outcomes table"
+        },
+        {
+          "name": "title",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "description",
+          "type": "character varying",
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "ctgov.baseline_counts",
+      "description": "Sample size at baseline for each study group; usually a count of participants but can represent other units of measure such as 'hands', 'hips', etc.",
+      "primary_key": [
+        "id"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "description": "primary key"
+        },
+        {
+          "name": "nct_id",
+          "type": "character varying",
+          "description": "foreign key referencing studies.nct_id"
+        },
+        {
+          "name": "result_group_id",
+          "type": "integer",
+          "description": null
+        },
+        {
+          "name": "ctgov_group_code",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "units",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "scope",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "count",
+          "type": "integer",
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "ctgov.baseline_measurements",
+      "description": "Summaries of demographic & baseline measures collected by arm or comparison group and for the entire population of participants in the clinical study.\u00a0",
+      "primary_key": [
+        "id"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "description": "primary key"
+        },
+        {
+          "name": "nct_id",
+          "type": "character varying",
+          "description": "foreign key referencing studies.nct_id"
+        },
+        {
+          "name": "result_group_id",
+          "type": "integer",
+          "description": null
+        },
+        {
+          "name": "ctgov_group_code",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "classification",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "category",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "title",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "description": null
+        },
+        {
+          "name": "units",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "param_type",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "param_value",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "param_value_num",
+          "type": "numeric",
+          "description": null
+        },
+        {
+          "name": "dispersion_type",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "dispersion_value",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "dispersion_value_num",
+          "type": "numeric",
+          "description": null
+        },
+        {
+          "name": "dispersion_lower_limit",
+          "type": "numeric",
+          "description": null
+        },
+        {
+          "name": "dispersion_upper_limit",
+          "type": "numeric",
+          "description": null
+        },
+        {
+          "name": "explanation_of_na",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "number_analyzed",
+          "type": "integer",
+          "description": null
+        },
+        {
+          "name": "number_analyzed_units",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "population_description",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "calculate_percentage",
+          "type": "character varying",
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "ctgov.browse_conditions",
+      "description": "NLM uses an internal algorithm to assess the data entered for a study and creates a list of standard MeSH terms that describe the condition(s) being addressed by the clinical trial.  This table provides the results of NLM's assessment",
+      "primary_key": [
+        "id"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "description": "primary key"
+        },
+        {
+          "name": "nct_id",
+          "type": "character varying",
+          "description": "foreign key referencing studies.nct_id"
+        },
+        {
+          "name": "mesh_term",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "downcase_mesh_term",
+          "type": "character varying",
+          "description": "mesh term for condition studied in the trial. Also follows medrt coding."
+        },
+        {
+          "name": "mesh_type",
+          "type": "character varying",
+          "description": "Posiition of term in mesh heirarchy. mesh-list: leaf node, mesh-ancestor: parent node. Always use mesh-list"
+        }
+      ]
+    },
+    {
+      "name": "ctgov.browse_interventions",
+      "description": "NLM uses an internal algorithm to assess the data entered for a study and creates a list of standard MeSH terms that describe the intervention(s) being addressed by the clinical trial.  This table provides the results of NLM's assessment",
+      "primary_key": [
+        "id"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "description": "primary key"
+        },
+        {
+          "name": "nct_id",
+          "type": "character varying",
+          "description": "foreign key referencing studies.nct_id"
+        },
+        {
+          "name": "mesh_term",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "downcase_mesh_term",
+          "type": "character varying",
+          "description": "mesh term for intervention or drug used in the trial."
+        },
+        {
+          "name": "mesh_type",
+          "type": "character varying",
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "ctgov.conditions",
+      "description": "Name(s) of the disease(s) or condition(s) studied in the clinical study, or the focus of the clinical study. Can include NLM's Medical Subject Heading (MeSH)-controlled vocabulary terms.",
+      "primary_key": [
+        "id"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "description": "primary key"
+        },
+        {
+          "name": "nct_id",
+          "type": "character varying",
+          "description": "foreign key referencing studies.nct_id"
+        },
+        {
+          "name": "name",
+          "type": "character varying",
+          "description": "non mesh-standardized names for conditions studied in the trial."
+        },
+        {
+          "name": "downcase_name",
+          "type": "character varying",
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "ctgov.countries",
+      "description": "Countries in which the study has facilities/sites.",
+      "primary_key": [
+        "id"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "description": "primary key"
+        },
+        {
+          "name": "nct_id",
+          "type": "character varying",
+          "description": "foreign key referencing studies.nct_id"
+        },
+        {
+          "name": "name",
+          "type": "character varying",
+          "description": "Pipe separated list of countries in which the trial was conducted."
+        },
+        {
+          "name": "removed",
+          "type": "boolean",
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "ctgov.design_group_interventions",
+      "description": "A cross reference for groups/interventions.  If a study has multiple groups and multiple interventions, this table shows which interventions are associated with which groups.",
+      "primary_key": [
+        "id"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "description": "primary key"
+        },
+        {
+          "name": "nct_id",
+          "type": "character varying",
+          "description": "foreign key referencing studies.nct_id"
+        },
+        {
+          "name": "design_group_id",
+          "type": "integer",
+          "description": "foreign key referencing design_groups.id"
+        },
+        {
+          "name": "intervention_id",
+          "type": "integer",
+          "description": "foreign key referencing interventions.id"
+        }
+      ]
+    },
+    {
+      "name": "ctgov.design_groups",
+      "description": "Defines the protocol-specified group, subgroup, or cohort of participants in a clinical trial assigned to receive specific intervention(s) or observations according to a protocol.",
+      "primary_key": [
+        "id"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "description": "primary key"
+        },
+        {
+          "name": "nct_id",
+          "type": "character varying",
+          "description": "foreign key referencing studies.nct_id"
+        },
+        {
+          "name": "group_type",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "title",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "ctgov.design_outcomes",
+      "description": "Description of planned outcome measures and observations that will describe patterns of diseases and traits/associations with exposures, risk factors or treatment.",
+      "primary_key": [
+        "id"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "description": "primary key"
+        },
+        {
+          "name": "nct_id",
+          "type": "character varying",
+          "description": "foreign key referencing studies.nct_id"
+        },
+        {
+          "name": "outcome_type",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "measure",
+          "type": "text",
+          "description": null
+        },
+        {
+          "name": "time_frame",
+          "type": "text",
+          "description": null
+        },
+        {
+          "name": "population",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "ctgov.designs",
+      "description": "Description of how the study will be conducted, including comparison group design and strategies for masking and allocating participants.",
+      "primary_key": [
+        "id"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "description": "primary key"
+        },
+        {
+          "name": "nct_id",
+          "type": "character varying",
+          "description": "foreign key referencing studies.nct_id"
+        },
+        {
+          "name": "allocation",
+          "type": "character varying",
+          "description": "Possible Values: Randomized, non-randomized, NA"
+        },
+        {
+          "name": "intervention_model",
+          "type": "character varying",
+          "description": "POssible values: crossover, parallel, sequential,single_group, NULL"
+        },
+        {
+          "name": "observational_model",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "primary_purpose",
+          "type": "character varying",
+          "description": "Possible values: basic_science, diagnostic,other,treatment"
+        },
+        {
+          "name": "time_perspective",
+          "type": "character varying",
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "ctgov.eligibilities",
+      "description": "Information about the criteria used to select participants; includes inclusion and exclusion criteria",
+      "primary_key": [
+        "id"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "description": "primary key"
+        },
+        {
+          "name": "nct_id",
+          "type": "character varying",
+          "description": "foreign key referencing studies.nct_id"
+        },
+        {
+          "name": "sampling_method",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "gender",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "minimum_age",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "maximum_age",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "healthy_volunteers",
+          "type": "boolean",
+          "description": null
+        },
+        {
+          "name": "population",
+          "type": "text",
+          "description": null
+        },
+        {
+          "name": "criteria",
+          "type": "text",
+          "description": null
+        },
+        {
+          "name": "gender_description",
+          "type": "text",
+          "description": null
+        },
+        {
+          "name": "gender_based",
+          "type": "boolean",
+          "description": null
+        },
+        {
+          "name": "adult",
+          "type": "boolean",
+          "description": null
+        },
+        {
+          "name": "child",
+          "type": "boolean",
+          "description": null
+        },
+        {
+          "name": "older_adult",
+          "type": "boolean",
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "ctgov.intervention_other_names",
+      "description": "Terns or phrases that are synonymous with an intervention.  (Each row is linked to one of the interventions associated with the study.)",
+      "primary_key": [
+        "id"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "description": "primary key"
+        },
+        {
+          "name": "nct_id",
+          "type": "character varying",
+          "description": "foreign key referencing studies.nct_id"
+        },
+        {
+          "name": "intervention_id",
+          "type": "integer",
+          "description": null
+        },
+        {
+          "name": "name",
+          "type": "character varying",
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "ctgov.interventions",
+      "description": "The interventions or exposures (including drugs, medical devices, procedures, vaccines, and other products) of interest to the study, or associated with study arms/groups.",
+      "primary_key": [
+        "id"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "description": "primary key"
+        },
+        {
+          "name": "nct_id",
+          "type": "character varying",
+          "description": "foreign key referencing studies.nct_id"
+        },
+        {
+          "name": "intervention_type",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "name",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "ctgov.outcome_counts",
+      "description": "Sample size included in analysis for each outcome for each study group; usually participants but can represent other units of measure such as eyes 'lesions', etc.",
+      "primary_key": [
+        "id"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "description": "primary key"
+        },
+        {
+          "name": "nct_id",
+          "type": "character varying",
+          "description": "foreign key referencing studies.nct_id"
+        },
+        {
+          "name": "outcome_id",
+          "type": "integer",
+          "description": null
+        },
+        {
+          "name": "result_group_id",
+          "type": "integer",
+          "description": null
+        },
+        {
+          "name": "ctgov_group_code",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "scope",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "units",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "count",
+          "type": "integer",
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "ctgov.outcome_measurements",
+      "description": "Summary data for primary and secondary outcome measures for each study group. Includes parameter estimates and measures of dispersion/precision.",
+      "primary_key": [
+        "id"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "description": "primary key"
+        },
+        {
+          "name": "nct_id",
+          "type": "character varying",
+          "description": "foreign key referencing studies.nct_id"
+        },
+        {
+          "name": "outcome_id",
+          "type": "integer",
+          "description": null
+        },
+        {
+          "name": "result_group_id",
+          "type": "integer",
+          "description": null
+        },
+        {
+          "name": "ctgov_group_code",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "classification",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "category",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "title",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "description": null
+        },
+        {
+          "name": "units",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "param_type",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "param_value",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "param_value_num",
+          "type": "numeric",
+          "description": null
+        },
+        {
+          "name": "dispersion_type",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "dispersion_value",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "dispersion_value_num",
+          "type": "numeric",
+          "description": null
+        },
+        {
+          "name": "dispersion_lower_limit",
+          "type": "numeric",
+          "description": null
+        },
+        {
+          "name": "dispersion_upper_limit",
+          "type": "numeric",
+          "description": null
+        },
+        {
+          "name": "explanation_of_na",
+          "type": "text",
+          "description": null
+        },
+        {
+          "name": "dispersion_upper_limit_raw",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "dispersion_lower_limit_raw",
+          "type": "character varying",
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "ctgov.outcomes",
+      "description": "Descriptions of outcomes, or observation that were measured to determine patterns of diseases or traits, or associations with exposures, risk factors, or treatment. Includes information such as time frame, population and units.  (Specific measurement results are stored in the Outcome_Measurements table.)",
+      "primary_key": [
+        "id"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "description": "primary key"
+        },
+        {
+          "name": "nct_id",
+          "type": "character varying",
+          "description": "foreign key referencing studies.nct_id"
+        },
+        {
+          "name": "outcome_type",
+          "type": "character varying",
+          "description": "Possible values: primary,secondary,other,NULL"
+        },
+        {
+          "name": "title",
+          "type": "text",
+          "description": null
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "description": null
+        },
+        {
+          "name": "time_frame",
+          "type": "text",
+          "description": null
+        },
+        {
+          "name": "population",
+          "type": "text",
+          "description": null
+        },
+        {
+          "name": "anticipated_posting_date",
+          "type": "date",
+          "description": null
+        },
+        {
+          "name": "anticipated_posting_month_year",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "units",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "units_analyzed",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "dispersion_type",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "param_type",
+          "type": "character varying",
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "ctgov.reported_events",
+      "description": "Summary information about reported adverse events (any untoward or unfavorable medical occurrence to participants, including abnormal physical exams, laboratory findings, symptoms, or diseases), including serious adverse events, other adverse events, and mortality.",
+      "primary_key": [
+        "id"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "description": "primary key"
+        },
+        {
+          "name": "nct_id",
+          "type": "character varying",
+          "description": "foreign key referencing studies.nct_id"
+        },
+        {
+          "name": "result_group_id",
+          "type": "integer",
+          "description": null
+        },
+        {
+          "name": "ctgov_group_code",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "time_frame",
+          "type": "text",
+          "description": null
+        },
+        {
+          "name": "default_vocab",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "default_assessment",
+          "type": "character varying",
+          "description": "This field is deprecated and no longer used"
+        },
+        {
+          "name": "subjects_affected",
+          "type": "integer",
+          "description": null
+        },
+        {
+          "name": "subjects_at_risk",
+          "type": "integer",
+          "description": null
+        },
+        {
+          "name": "event_count",
+          "type": "integer",
+          "description": null
+        },
+        {
+          "name": "organ_system",
+          "type": "character varying",
+          "description": "MedDRA coded organ system for the adverse event"
+        },
+        {
+          "name": "adverse_event_term",
+          "type": "character varying",
+          "description": "MedDRA coded adverse events. ALWAYS this when adverse events are required."
+        },
+        {
+          "name": "frequency_threshold",
+          "type": "integer",
+          "description": null
+        },
+        {
+          "name": "vocab",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "assessment",
+          "type": "character varying",
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "ctgov.result_groups",
+      "description": "Consolidated, aggregate list of group titles/descriptions used for reporting summary results information.",
+      "primary_key": [
+        "id"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "description": "primary key"
+        },
+        {
+          "name": "nct_id",
+          "type": "character varying",
+          "description": "foreign key referencing studies.nct_id"
+        },
+        {
+          "name": "ctgov_group_code",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "result_type",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "title",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "description": null
+        },
+        {
+          "name": "outcome_id",
+          "type": "integer",
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "ctgov.sponsors",
+      "description": "Name of study sponsors and collaborators. The sponsor is the entity or individual initiating the study. Collaborators are other organizations providing support, including funding, design, implementation, data analysis, and reporting.",
+      "primary_key": [
+        "id"
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "description": "primary key"
+        },
+        {
+          "name": "nct_id",
+          "type": "character varying",
+          "description": "foreign key referencing studies.nct_id"
+        },
+        {
+          "name": "agency_class",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "lead_or_collaborator",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "name",
+          "type": "character varying",
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "ctgov.studies",
+      "description": "Basic info about study, including study title, date study registered with ClinicalTrials.gov, date results first posted to ClinicalTrials.gov, dates for study start and completion, phase of study, enrollment status, planned or actual enrollment, number of study arms/groups, etc.",
+      "primary_key": [
+        "nct_id"
+      ],
+      "columns": [
+        {
+          "name": "nct_id",
+          "type": "character varying",
+          "description": "foreign key referencing studies.nct_id"
+        },
+        {
+          "name": "study_first_submitted_date",
+          "type": "date",
+          "description": null
+        },
+        {
+          "name": "results_first_submitted_date",
+          "type": "date",
+          "description": null
+        },
+        {
+          "name": "disposition_first_submitted_date",
+          "type": "date",
+          "description": null
+        },
+        {
+          "name": "last_update_submitted_date",
+          "type": "date",
+          "description": null
+        },
+        {
+          "name": "study_first_submitted_qc_date",
+          "type": "date",
+          "description": null
+        },
+        {
+          "name": "study_first_posted_date",
+          "type": "date",
+          "description": null
+        },
+        {
+          "name": "results_first_submitted_qc_date",
+          "type": "date",
+          "description": null
+        },
+        {
+          "name": "results_first_posted_date",
+          "type": "date",
+          "description": null
+        },
+        {
+          "name": "disposition_first_submitted_qc_date",
+          "type": "date",
+          "description": null
+        },
+        {
+          "name": "disposition_first_posted_date",
+          "type": "date",
+          "description": null
+        },
+        {
+          "name": "disposition_first_posted_date_type",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "last_update_submitted_qc_date",
+          "type": "date",
+          "description": null
+        },
+        {
+          "name": "last_update_posted_date",
+          "type": "date",
+          "description": null
+        },
+        {
+          "name": "last_update_posted_date_type",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "start_month_year",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "start_date_type",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "start_date",
+          "type": "date",
+          "description": null
+        },
+        {
+          "name": "verification_month_year",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "verification_date",
+          "type": "date",
+          "description": null
+        },
+        {
+          "name": "completion_month_year",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "completion_date_type",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "completion_date",
+          "type": "date",
+          "description": null
+        },
+        {
+          "name": "primary_completion_month_year",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "primary_completion_date_type",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "primary_completion_date",
+          "type": "date",
+          "description": null
+        },
+        {
+          "name": "target_duration",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "study_type",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "baseline_population",
+          "type": "text",
+          "description": null
+        },
+        {
+          "name": "brief_title",
+          "type": "text",
+          "description": null
+        },
+        {
+          "name": "official_title",
+          "type": "text",
+          "description": null
+        },
+        {
+          "name": "overall_status",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "last_known_status",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "phase",
+          "type": "character varying",
+          "description": "Strictlt use values out of these: PHASE2, PHASE1, PHASE3, EARLY_PHASE1"
+        },
+        {
+          "name": "enrollment",
+          "type": "integer",
+          "description": null
+        },
+        {
+          "name": "enrollment_type",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "source",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "number_of_arms",
+          "type": "integer",
+          "description": null
+        },
+        {
+          "name": "number_of_groups",
+          "type": "integer",
+          "description": null
+        },
+        {
+          "name": "source_class",
+          "type": "character varying",
+          "description": null
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "from_table": "public.drug_trials",
+      "from_columns": [
+        "nct_id"
+      ],
+      "to_table": "ctgov.studies",
+      "to_columns": [
+        "nct_id"
+      ],
+      "type": "one_to_one"
+    },
+    {
+      "from_table": "public.drug_trial_outcomes_pro",
+      "from_columns": [
+        "nct_id"
+      ],
+      "to_table": "public.drug_trials",
+      "to_columns": [
+        "nct_id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "public.drug_trial_outcomes_pro",
+      "from_columns": [
+        "outcome_id"
+      ],
+      "to_table": "ctgov.outcomes",
+      "to_columns": [
+        "id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "ctgov.baseline_counts",
+      "from_columns": [
+        "nct_id"
+      ],
+      "to_table": "ctgov.studies",
+      "to_columns": [
+        "nct_id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "ctgov.baseline_measurements",
+      "from_columns": [
+        "nct_id"
+      ],
+      "to_table": "ctgov.studies",
+      "to_columns": [
+        "nct_id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "ctgov.browse_conditions",
+      "from_columns": [
+        "nct_id"
+      ],
+      "to_table": "ctgov.studies",
+      "to_columns": [
+        "nct_id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "ctgov.browse_interventions",
+      "from_columns": [
+        "nct_id"
+      ],
+      "to_table": "ctgov.studies",
+      "to_columns": [
+        "nct_id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "ctgov.calculated_values",
+      "from_columns": [
+        "nct_id"
+      ],
+      "to_table": "ctgov.studies",
+      "to_columns": [
+        "nct_id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "ctgov.conditions",
+      "from_columns": [
+        "nct_id"
+      ],
+      "to_table": "ctgov.studies",
+      "to_columns": [
+        "nct_id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "ctgov.countries",
+      "from_columns": [
+        "nct_id"
+      ],
+      "to_table": "ctgov.studies",
+      "to_columns": [
+        "nct_id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "ctgov.design_group_interventions",
+      "from_columns": [
+        "nct_id"
+      ],
+      "to_table": "ctgov.studies",
+      "to_columns": [
+        "nct_id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "ctgov.design_groups",
+      "from_columns": [
+        "nct_id"
+      ],
+      "to_table": "ctgov.studies",
+      
+      "to_columns": [
+        "nct_id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "ctgov.design_outcomes",
+      "from_columns": [
+        "nct_id"
+      ],
+      "to_table": "ctgov.studies",
+      "to_columns": [
+        "nct_id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "ctgov.designs",
+      "from_columns": [
+        "nct_id"
+      ],
+      "to_table": "ctgov.studies",
+      "to_columns": [
+        "nct_id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "ctgov.eligibilities",
+      "from_columns": [
+        "nct_id"
+      ],
+      "to_table": "ctgov.studies",
+      "to_columns": [
+        "nct_id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "ctgov.facilities",
+      "from_columns": [
+        "nct_id"
+      ],
+      "to_table": "ctgov.studies",
+      "to_columns": [
+        "nct_id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "ctgov.intervention_other_names",
+      "from_columns": [
+        "nct_id"
+      ],
+      "to_table": "ctgov.studies",
+      "to_columns": [
+        "nct_id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "ctgov.interventions",
+      "from_columns": [
+        "nct_id"
+      ],
+      "to_table": "ctgov.studies",
+      "to_columns": [
+        "nct_id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "ctgov.outcome_analyses",
+      "from_columns": [
+        "nct_id"
+      ],
+      "to_table": "ctgov.studies",
+      "to_columns": [
+        "nct_id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "ctgov.outcome_analysis_groups",
+      "from_columns": [
+        "nct_id"
+      ],
+      "to_table": "ctgov.studies",
+      "to_columns": [
+        "nct_id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "ctgov.outcome_counts",
+      "from_columns": [
+        "nct_id"
+      ],
+      "to_table": "ctgov.studies",
+      "to_columns": [
+        "nct_id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "ctgov.outcome_measurements",
+      "from_columns": [
+        "nct_id"
+      ],
+      "to_table": "ctgov.studies",
+      "to_columns": [
+        "nct_id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "ctgov.outcomes",
+      "from_columns": [
+        "nct_id"
+      ],
+      "to_table": "ctgov.studies",
+      "to_columns": [
+        "nct_id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "ctgov.reported_event_totals",
+      "from_columns": [
+        "nct_id"
+      ],
+      "to_table": "ctgov.studies",
+      "to_columns": [
+        "nct_id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "ctgov.reported_events",
+      "from_columns": [
+        "nct_id"
+      ],
+      "to_table": "ctgov.studies",
+      "to_columns": [
+        "nct_id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "ctgov.responsible_parties",
+      "from_columns": [
+        "nct_id"
+      ],
+      "to_table": "ctgov.studies",
+      "to_columns": [
+        "nct_id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "ctgov.result_agreements",
+      "from_columns": [
+        "nct_id"
+      ],
+      "to_table": "ctgov.studies",
+      "to_columns": [
+        "nct_id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "ctgov.result_contacts",
+      "from_columns": [
+        "nct_id"
+      ],
+      "to_table": "ctgov.studies",
+      "to_columns": [
+        "nct_id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "ctgov.result_groups",
+      "from_columns": [
+        "nct_id"
+      ],
+      "to_table": "ctgov.studies",
+      "to_columns": [
+        "nct_id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "ctgov.sponsors",
+      "from_columns": [
+        "nct_id"
+      ],
+      "to_table": "ctgov.studies",
+      "to_columns": [
+        "nct_id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "ctgov.design_group_interventions",
+      "from_columns": [
+        "design_group_id"
+      ],
+      "to_table": "ctgov.design_groups",
+      "to_columns": [
+        "id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "ctgov.design_group_interventions",
+      "from_columns": [
+        "intervention_id"
+      ],
+      "to_table": "ctgov.interventions",
+      "to_columns": [
+        "id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "ctgov.result_groups",
+      "from_columns": [
+        "outcome_id"
+      ],
+      "to_table": "ctgov.outcomes",
+      "to_columns": [
+        "id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "ctgov.baseline_counts",
+      "from_columns": [
+        "result_group_id"
+      ],
+      "to_table": "ctgov.result_groups",
+      "to_columns": [
+        "id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "ctgov.baseline_measurements",
+      "from_columns": [
+        "result_group_id"
+      ],
+      "to_table": "ctgov.result_groups",
+      "to_columns": [
+        "id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "ctgov.reported_events",
+      "from_columns": [
+        "result_group_id"
+      ],
+      "to_table": "ctgov.result_groups",
+      "to_columns": [
+        "id"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "ctgov.outcome_analyses",
+      "from_columns": [
+        "outcome_id"
+      ],
+      "to_table": "ctgov.outcomes",
+      "to_columns": [
+        "id"
+      ],
+      "type": "many_to_one"
+    }
+  ]
+}

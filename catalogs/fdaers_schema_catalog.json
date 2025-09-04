@@ -1,0 +1,285 @@
+{
+  "version": "0.1-stub",
+  "generated_at": "2025-08-26T21:35:41.514148Z",
+  "dialect": "postgresql",
+  "description": "FAERS schema catalog (partially inferred from user queries). Replace/extend with your exact schema.",
+  "tables": [
+    {
+      "name": "demo",
+      "description": "Report-level demographics and metadata.",
+      "primary_key": [
+        "primaryid"
+      ],
+      "columns": [
+        {
+          "name": "primaryid",
+          "type": "bigint",
+          "description": "Unique report identifier (FAERS report)."
+        },
+        {
+          "name": "caseid",
+          "type": "bigint",
+          "description": "Case identifier; multiple primaryids may belong to one case."
+        },
+        {
+          "name": "fda_dt",
+          "type": "date",
+          "description": "FDA event/reported date."
+        },
+        {
+          "name": "rept_dt",
+          "type": "date",
+          "description": "Report date."
+        },
+        {
+          "name": "age",
+          "type": "numeric",
+          "description": "Patient age value."
+        },
+        {
+          "name": "age_cod",
+          "type": "text",
+          "description": "Age unit code: DEC, YR, MON, WK, DY, HR."
+        },
+        {
+          "name": "sex",
+          "type": "text",
+          "description": "Sex code: M , F"
+        },
+        {
+          "name": "wt",
+          "type": "numeric",
+          "description": "Weight value."
+        },
+        {
+          "name": "wt_cod",
+          "type": "text",
+          "description": "Weight unit (if present)."
+        },
+        {
+          "name": "occp_cod",
+          "type": "text",
+          "description": "Reporter occupation code are MD: Physician, PH: Pharmacist, OT: Other health professional, LW: Lawyers, CN: Consumer/etc)."
+        },
+        {
+          "name": "reporter_country",
+          "type": "text",
+          "description": "Reporter country (2-letter code)."
+        }
+      ]
+    },
+    {
+      "name": "drug_cases",
+      "description": "Brand/generic drug mentions at the report level with sequence linking to indications and therapies.",
+      "primary_key": [
+        "primaryid",
+        "drug_seq"
+      ],
+      "columns": [
+        {
+          "name": "primaryid",
+          "type": "bigint",
+          "description": "FK to demo.primaryid"
+        },
+        {
+          "name": "caseid",
+          "type": "bigint",
+          "description": "Denormalized case id (if present)."
+        },
+        {
+          "name": "drug_seq",
+          "type": "integer",
+          "description": "Drug sequence within the report."
+        },
+        {
+          "name": "brand_name",
+          "type": "text",
+          "description": "Brand name of the product (if known)."
+        },
+        {
+          "name": "prod_ai",
+          "type": "text",
+          "description": "Active ingredient name, if available."
+        }
+      ]
+    },
+    {
+      "name": "drug",
+      "description": "FAERS drug table variant (if present in your warehouse). Keep if you also store normalized DRUG rows here.",
+      "primary_key": [
+        "primaryid",
+        "drug_seq"
+      ],
+      "columns": [
+        {
+          "name": "primaryid",
+          "type": "bigint",
+          "description": "FK to demo.primaryid"
+        },
+        {
+          "name": "drug_seq",
+          "type": "integer",
+          "description": "Drug sequence within the report."
+        },
+        {
+          "name": "drugname",
+          "type": "text",
+          "description": "Reported drug name."
+        },
+        {
+          "name": "prod_ai",
+          "type": "text",
+          "description": "Active ingredient."
+        },
+        {
+          "name": "route",
+          "type": "text",
+          "description": "Route of administration (if available)."
+        }
+      ]
+    },
+    {
+      "name": "indi",
+      "description": "Indications for use linked to a specific drug in the report.",
+      "primary_key": [
+        "primaryid",
+        "indi_drug_seq"
+      ],
+      "columns": [
+        {
+          "name": "primaryid",
+          "type": "bigint",
+          "description": "FK to demo.primaryid"
+        },
+        {
+          "name": "indi_drug_seq",
+          "type": "integer",
+          "description": "Matches drug_seq of the intended drug in the report."
+        },
+        {
+          "name": "indi_pt",
+          "type": "text",
+          "description": "MedDRA Preferred Term for the indication."
+        }
+      ]
+    },
+    {
+      "name": "reac",
+      "description": "Reported adverse reactions (events) for a given report.",
+      "primary_key": [
+        "primaryid",
+        "pt"
+      ],
+      "columns": [
+        {
+          "name": "primaryid",
+          "type": "bigint",
+          "description": "FK to demo.primaryid"
+        },
+        {
+          "name": "pt",
+          "type": "text",
+          "description": "MedDRA Preferred Term for the reaction (event)."
+        }
+      ]
+    },
+    {
+      "name": "soc_map",
+      "description": "Mapping between MedDRA PT and System Organ Class (SOC). Provide your authoritative mapping here.",
+      "primary_key": [
+        "pt"
+      ],
+      "columns": [
+        {
+          "name": "pt",
+          "type": "text",
+          "description": "MedDRA Preferred Term."
+        },
+        {
+          "name": "soc",
+          "type": "text",
+          "description": "MedDRA System Organ Class for the PT."
+        }
+      ]
+    },
+    {
+      "name": "outc",
+      "description": "Clinical outcomes per report.",
+      "primary_key": [
+        "primaryid",
+        "outc_cod"
+      ],
+      "columns": [
+        {
+          "name": "primaryid",
+          "type": "bigint",
+          "description": "FK to demo.primaryid"
+        },
+        {
+          "name": "outc_cod",
+          "type": "text",
+          "description": "Outcome code (e.g., DE=Death, LT=Life-threatening, HO=Hospitalization, etc.)."
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "from_table": "drug_cases",
+      "from_columns": [
+        "primaryid"
+      ],
+      "to_table": "demo",
+      "to_columns": [
+        "primaryid"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "indi",
+      "from_columns": [
+        "primaryid",
+        "indi_drug_seq"
+      ],
+      "to_table": "drug_cases",
+      "to_columns": [
+        "primaryid",
+        "drug_seq"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "reac",
+      "from_columns": [
+        "primaryid"
+      ],
+      "to_table": "demo",
+      "to_columns": [
+        "primaryid"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "outc",
+      "from_columns": [
+        "primaryid"
+      ],
+      "to_table": "demo",
+      "to_columns": [
+        "primaryid"
+      ],
+      "type": "many_to_one"
+    },
+    {
+      "from_table": "drug",
+      "from_columns": [
+        "primaryid"
+      ],
+      "to_table": "demo",
+      "to_columns": [
+        "primaryid"
+      ],
+      "type": "many_to_one"
+    }
+  ]
+}
