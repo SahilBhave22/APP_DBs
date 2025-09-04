@@ -13,15 +13,15 @@ st.set_page_config(page_title="FDAERS + Clinical Trials ", layout="wide")
 
 OPENAI_KEY     = st.secrets.get("openai_api_key")
 
-DB_PASSWORD = st.secrets.get("db_password") 
-password = quote_plus(DB_PASSWORD)
+#DB_PASSWORD = st.secrets.get("db_password") 
+#password = quote_plus(DB_PASSWORD)
 
 
-PUBLIC_IP = "35.226.191.103"  # Cloud SQL public IP
-DB_USER   = "postgres"
-DB_PASS   = "Scb#12345678"
-DB_NAME_AACT   = "aact"
-DB_NAME_FDAERS = "fdaers"
+PUBLIC_IP = st.secrets.get("public_ip")  # Cloud SQL public IP
+DB_USER   = st.secrets.get("db_user")
+DB_PASS   = st.secrets.get("db_pass")
+DB_NAME_AACT   = st.secrets.get("db_name_aact")
+DB_NAME_FDAERS = st.secrets.get("db_name_fdaers")
 
 FAERS_DB_URL =  f"postgresql://{DB_USER}:{DB_PASS}@{PUBLIC_IP}:5432/{DB_NAME_FDAERS}?sslmode=require&connect_timeout=70"
 AACT_DB_URL = f"postgresql://{DB_USER}:{DB_PASS}@{PUBLIC_IP}:5432/{DB_NAME_AACT}?sslmode=require&connect_timeout=70"
