@@ -449,7 +449,7 @@
         {
           "name": "outcome_type",
           "type": "character varying",
-          "description": null
+          "description": "Possible values are PRIMARY, SECONDARY, OTHER and null"
         },
         {
           "name": "measure",
@@ -842,7 +842,7 @@
         {
           "name": "outcome_type",
           "type": "character varying",
-          "description": "Possible values: primary,secondary,other,NULL"
+          "description": "Possible values: PRIMARY,SECONDARY,OTHER,NULL"
         },
         {
           "name": "title",
