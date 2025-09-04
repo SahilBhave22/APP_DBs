@@ -86,7 +86,7 @@ if st.button("Run", type="primary"):
         st.subheader("FDAERS")
         if isinstance(out.get("faers_df"), pd.DataFrame):
             fdf = out["faers_df"]
-            with st.expander("fdaers data"):
+            with st.expander("FDAERS data"):
                 st.caption(f"{len(fdf):,} rows · {fdf.shape[1]} cols")
                 st.dataframe(fdf.head(500), use_container_width=True, hide_index=True)
                 st.download_button("Download FDAERS CSV", fdf.to_csv(index=False).encode("utf-8"), "faers_results.csv", use_container_width=True)

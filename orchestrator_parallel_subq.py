@@ -187,11 +187,13 @@ AACT:
 - error: {state.get('aact_error') or 'None'}
 
 Instructions:
+- DO NOT REPEAT THE RESULTS OF SQL QUERIES.
 - Use the per-DB sub-questions as the lens for interpreting each table.
 - If both exist, synthesize findings and note convergence/divergence.
 - Do NOT dump tables; surface patterns, outliers, caveats.
 - Suggest 1–3 concrete next steps.
-- Confine your summary to 2000 words.
+- DO NOT MAKE UP summary, please derive only from results of sql data.
+- Confine your summary to 1000 words.
 """
         ans = llm.invoke(prompt).content
         return {"final_answer": ans}
