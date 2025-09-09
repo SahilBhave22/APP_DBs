@@ -224,7 +224,7 @@
     },
     {
       "name": "public.drug_classes",
-      "description": "ATC Coded drug classes for drugs ",
+      "description": "ATC drug classes for drugs ",
       "primary_key": [
         "brand_name"
       ],
@@ -237,7 +237,7 @@
         {
           "name": "atc_class_name",
           "type": "character varying",
-          "description": "ATC coded drug class for the drug. ALWAYS USE THIS COLUMN FOR drug classes"
+          "description": "ATC drug class for the drug. ALWAYS USE THIS COLUMN FOR drug classes"
         }
       ]
     }
