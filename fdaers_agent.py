@@ -122,6 +122,7 @@ Rules:
   - reac.primaryid ↔ demo.primaryid
 - Case-insensitive filters: use ILIKE for text.
 - TO get drugs associated with a drug class, ALWAYS USE drug_classes TABLE and use ILIKE for filters.
+- DO NOT USE atc_code as filter, ALWAYS USE atc_class_name
 - For all drugs within a class, ALWAYS give data segregated by brand name.
 - Guidance for comparative queries
     - IF comparsion among 2 drugs is asked, make sure to add a stratification by the brand_name too.
@@ -149,7 +150,7 @@ Validator feedback:
 {{feedback}}
 """
 
-    llm = ChatOpenAI(model=os.getenv("FAERS_LLM_MODEL", "gpt-4o"), temperature=0.1)
+    llm = ChatOpenAI(model=os.getenv("FAERS_LLM_MODEL1", "gpt-4o"), temperature=0)
 
     # -------- Nodes --------
     def draft_sql_node(state: AgentState) -> AgentState:
