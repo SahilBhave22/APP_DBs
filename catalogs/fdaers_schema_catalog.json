@@ -237,12 +237,12 @@
         {
           "name": "atc_class_name",
           "type": "character varying",
-          "description": "ATC coded drug class for the drug."
+          "description": "ATC coded drug class for the drug. ALWAYS USE THIS COLUMN FOR drug classes"
         },
         {
           "name": "atc_code",
           "type": "character varying",
-          "description": "ATC code for the durg class."
+          "description": null
         }
       ]
     }
