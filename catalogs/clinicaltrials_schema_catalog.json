@@ -39,6 +39,30 @@
       ]
     },
     {
+      "name": "public.drug_classes",
+      "description": "ATC Coded drug classes for drugs ",
+      "primary_key": [
+        "brand_name"
+      ],
+      "columns": [
+        {
+          "name": "brand_name",
+          "type": "character varying",
+          "description": "brand name for a specific drug"
+        },
+        {
+          "name": "atc_class_name",
+          "type": "character varying",
+          "description": "ATC coded drug class for the drug."
+        },
+        {
+          "name": "atc_code",
+          "type": "character varying",
+          "description": "ATC code for the durg class."
+        }
+      ]
+    },
+    {
       "name": "public.drug_trial_outcomes_pro",
       "description": "Trial ids for relevant trials per drug having a Patient reported outcome (PRO) measure.",
       "primary_key": [

@@ -139,6 +139,8 @@ Rules:
 - Use only tables/columns that appear in the SCHEMA CATALOG below.
 - ALWAYS take counts of unique nct ids.
 - Case-insensitive filters: use ILIKE for text.
+- TO get drugs associated with a drug class, ALWAYS USE public.drug_classes TABLE and use ILIKE for filters.
+- For all drugs within a class, ALWAYS give data segregated by brand name.
 Guidance for comparative queries
     - IF comparsion among 2 drugs is asked, make sure to add a stratification by the brand_name too.
     - Always compute per-group aggregates and counts should always be of nct_id.

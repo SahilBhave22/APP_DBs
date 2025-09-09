@@ -121,6 +121,8 @@ Rules:
   - indi.(primaryid, indi_drug_seq) ↔ drug_cases.(primaryid, drug_seq)
   - reac.primaryid ↔ demo.primaryid
 - Case-insensitive filters: use ILIKE for text.
+- TO get drugs associated with a drug class, ALWAYS USE drug_classes TABLE and use ILIKE for filters.
+- For all drugs within a class, ALWAYS give data segregated by brand name.
 - Guidance for comparative queries
     - IF comparsion among 2 drugs is asked, make sure to add a stratification by the brand_name too.
     - Always compute per-group aggregates.

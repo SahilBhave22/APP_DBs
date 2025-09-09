@@ -221,6 +221,30 @@
           "description": "Outcome code (e.g., DE=Death, LT=Life-threatening, HO=Hospitalization, etc.)."
         }
       ]
+    },
+    {
+      "name": "public.drug_classes",
+      "description": "ATC Coded drug classes for drugs ",
+      "primary_key": [
+        "brand_name"
+      ],
+      "columns": [
+        {
+          "name": "brand_name",
+          "type": "character varying",
+          "description": "brand name for a specific drug"
+        },
+        {
+          "name": "atc_class_name",
+          "type": "character varying",
+          "description": "ATC coded drug class for the drug."
+        },
+        {
+          "name": "atc_code",
+          "type": "character varying",
+          "description": "ATC code for the durg class."
+        }
+      ]
     }
   ],
   "relationships": [
