@@ -24,12 +24,12 @@
         {
           "name": "fda_dt",
           "type": "date",
-          "description": "FDA event/reported date."
+          "description": "FDA event/reported date. format is yyymmdd"
         },
         {
           "name": "rept_dt",
           "type": "date",
-          "description": "Report date."
+          "description": "Report date. format is yyymmdd"
         },
         {
           "name": "age",

@@ -146,7 +146,7 @@ def build_orchestrator_parallel_subq(faers_app, aact_app):
         return {}
 
     def summarize_node(state: OrchestratorState) -> OrchestratorState:
-        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+        llm = ChatOpenAI(model="gpt-4o", temperature=0)
 
         def meta(df: Optional[pd.DataFrame]):
             if isinstance(df, pd.DataFrame):
@@ -189,7 +189,6 @@ AACT:
 Instructions:
 - DO NOT REPEAT THE RESULTS OF SQL QUERIES.
 - Use the per-DB sub-questions as the lens for interpreting each table.
-- If both exist, synthesize findings and note convergence/divergence.
 - Do NOT dump tables; surface patterns, outliers, caveats.
 - Suggest 1–3 concrete next steps.
 - DO NOT MAKE UP summary, please derive only from results of sql data.
