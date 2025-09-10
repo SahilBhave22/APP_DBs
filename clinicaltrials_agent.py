@@ -134,6 +134,7 @@ Rules:
 - Read-only: WITH/SELECT only; never DDL/DML or COPY.
 - ALWAYS USE public.drug_trials TABLE TO GET TRIAL IDS FOR A PARTICULAR DRUG. 
 - ALWAYS USE public.drug_trial_outcomes_pro TABLE to get trial ids and outcome ids for patient reported outcomes (PRO) measures.
+- ALWAYS USE public.domain_score_match to get PRO domain or sub-scale information.
 - ONLY USE FROM POSSIBLE VALUES GIVEN IN COLUMN DESCRIPTION
 - MAKE SURE THE QUERY HAS CORRECT SYNTAX
 - Use only tables/columns that appear in the SCHEMA CATALOG below.

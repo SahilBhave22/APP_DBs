@@ -102,6 +102,50 @@
       ]
     },
     {
+      "name": "public.domain_score_match",
+      "description": "Domain classification for Patient reported outcome (PRO) measure in trials",
+      "primary_key": [
+        "nct_id"
+      ],
+      "columns": [
+        {
+          "name": "nct_id",
+          "type": "character varying",
+          "description": "foreign key referencing studies.nct_id"
+        },
+        {
+          "name": "brand_name",
+          "type": "character varying",
+          "description": "Brand name for the drug"
+        },
+        {
+          "name": "instrument_name",
+          "type": "character varying",
+          "description": "Name of the PRO instrument used to measure the outcome."
+        },
+        {
+          "name": "outcome_id",
+          "type": "character varying",
+          "description": "id for specific outcome within the trial. Connects to outcomes table"
+        },
+        {
+          "name": "outcome_title",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "outcome_description",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "criteria",
+          "type": "character varying",
+          "description": "Classification of PRO measure into sub-categorires. USE THIS COLUMN FOR ALL SUB-SCALE RELATED QUERIES."
+        }
+      ]
+    },
+    {
       "name": "ctgov.baseline_counts",
       "description": "Sample size at baseline for each study group; usually a count of participants but can represent other units of measure such as 'hands', 'hips', etc.",
       "primary_key": [
