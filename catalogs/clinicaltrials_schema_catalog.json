@@ -87,7 +87,7 @@
         {
           "name": "outcome_id",
           "type": "character varying",
-          "description": "id for specific outcome within the trial. Connects to outcomes table"
+          "description": "foreign key referencing outcomes.id"
         },
         {
           "name": "title",

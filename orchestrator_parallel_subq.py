@@ -154,7 +154,7 @@ def build_orchestrator_parallel_subq(faers_app, aact_app):
                     "rows": len(df),
                     "cols": df.shape[1],
                     "columns": [str(c) for c in df.columns][:40],
-                    "sample": df.head(5).to_dict("records"),
+                    "sample": df.head(100).to_dict("records"),
                 }
             return {"rows": 0, "cols": 0, "columns": [], "sample": []}
 
@@ -175,14 +175,14 @@ Router:
 FAERS:
 - rows: {fmeta['rows']}, cols: {fmeta['cols']}
 - columns (first 40): {fmeta['columns']}
-- sample rows (≤5): {fmeta['sample']}
+- sample rows (≤100): {fmeta['sample']}
 - SQL: {(state.get('faers_sql') or '')[:1200]}
 - error: {state.get('faers_error') or 'None'}
 
 AACT:
 - rows: {ameta['rows']}, cols: {ameta['cols']}
 - columns (first 40): {ameta['columns']}
-- sample rows (≤5): {ameta['sample']}
+- sample rows (≤100): {ameta['sample']}
 - SQL: {(state.get('aact_sql') or '')[:1200]}
 - error: {state.get('aact_error') or 'None'}
 
@@ -192,7 +192,7 @@ Instructions:
 - Do NOT dump tables; surface patterns, outliers, caveats.
 - Suggest 1–3 concrete next steps.
 - DO NOT MAKE UP summary, please derive only from results of sql data.
-- Confine your summary to 1000 words.
+- Confine your summary to 2000 words.
 """
         ans = llm.invoke(prompt).content
         return {"final_answer": ans}
