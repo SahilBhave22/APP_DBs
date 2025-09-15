@@ -24,12 +24,7 @@
         {
           "name": "fda_dt",
           "type": "date",
-          "description": "FDA event/reported date. format is yyymmdd"
-        },
-        {
-          "name": "rept_dt",
-          "type": "date",
-          "description": "Report date. format is yyymmdd"
+          "description": "FDA event/reported date. format is yyyymmdd"
         },
         {
           "name": "age",
@@ -185,13 +180,13 @@
     },
     {
       "name": "soc_map",
-      "description": "Mapping between MedDRA PT and System Organ Class (SOC). Provide your authoritative mapping here.",
+      "description": "Mapping between MedDRA PT and System Organ Class (SOC).",
       "primary_key": [
         "pt"
       ],
       "columns": [
         {
-          "name": "pt",
+          "name": "english_pt",
           "type": "text",
           "description": "MedDRA Preferred Term."
         },
@@ -299,6 +294,17 @@
         "primaryid"
       ],
       "type": "many_to_one"
+    },
+    {
+      "from_table": "soc_map",
+      "from_columns": [
+        "english_pt"
+      ],
+      "to_table": "reac",
+      "to_columns": [
+        "pt"
+      ],
+      "type": "many_to_many"
     }
   ]
 }
