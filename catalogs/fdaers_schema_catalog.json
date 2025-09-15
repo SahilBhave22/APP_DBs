@@ -59,7 +59,7 @@
         {
           "name": "occp_cod",
           "type": "text",
-          "description": "Reporter occupation code are MD: Physician, PH: Pharmacist, OT: Other health professional, LW: Lawyers, CN: Consumer/etc)."
+          "description": "Reporter occupation code are MD: Physician, PH: Pharmacist, OT: Other health professional, LW: Lawyers, CN: Consumer/etc), HP: Health professional"
         },
         {
           "name": "reporter_country",
@@ -224,7 +224,7 @@
     },
     {
       "name": "public.drug_classes",
-      "description": "ATC drug classes for drugs ",
+      "description": "ATC drug classes for drugs. Make sure to capture all variations of the class name from possible values. ",
       "primary_key": [
         "brand_name"
       ],
@@ -237,7 +237,7 @@
         {
           "name": "atc_class_name",
           "type": "character varying",
-          "description": "ATC drug class for the drug. ALWAYS USE THIS COLUMN FOR drug classes"
+          "description": "Possible Values: Cyclin-dependent kinase (CDK) inhibitors,Pyrimidine analogues,Other antineoplastic agents,Combinations of monoclonal antibodies and antibody drug conjugates,Anaplastic lymphoma kinase (ALK) inhibitors,Various therapeutic radiopharmaceuticals,Other immunosuppressants,Aromatase inhibitors,Other immunostimulants,Other hormone antagonists and related agents,Antivirals,VEGF/VEGFR (Vascular Endothelial Growth Factor / -Receptor) inhibitors,Antineoplastic cell and gene therapy,BCR-ABL tyrosine kinase inhibitors,Other plant alkaloids and natural products,Mitogen-activated protein kinase (MEK) inhibitors,Poly (ADP-ribose) polymerase (PARP) inhibitors,HER2 (Human Epidermal Growth Factor Receptor 2) inhibitors,Enzymes,Vascular endothelial growth factor receptor (VEGFR) tyrosine kinase inhibitors,Selective immunosuppressants,Detoxifying agents for antineoplastic treatment,Other antianemic preparations,Alkyl sulfonates,Janus-associated kinase (JAK) inhibitors,Monoclonal antibodies,Interferons,Fourth-generation cephalosporins,Other hematological agents,Other drugs affecting bone structure and mineralization,Epidermal growth factor receptor (EGFR) tyrosine kinase inhibitors,Fibroblast growth factor receptor (FGFR) tyrosine kinase inhibitors,B-Raf serine-threonine kinase (BRAF) inhibitors,Isocitrate dehydrogenase (IDH) inhibitors,Phosphatidylinositol-3-kinase (Pi3K) inhibitors,Interleukin inhibitors,CD20 (Clusters of Differentiation 20) inhibitors,PD-1/PD-L1 (Programmed cell death protein 1/death ligand 1) inhibitors,Proteasome inhibitors,Other antithrombotic agents,Histone deacetylase (HDAC) inhibitors,Other monoclonal antibodies and antibody drug conjugates,Combinations of antineoplastic agents,Various alimentary tract and metabolism products,CD38 (Clusters of Differentiation 38) inhibitors,Hedgehog pathway inhibitors,Preparations increasing uric acid excretion,Human epidermal growth factor receptor 2 (HER2) tyrosine kinase inhibitors,Anti-androgens,Anti-estrogens,Other protein kinase inhibitors,Colony stimulating factors,Bruton's tyrosine kinase (BTK) inhibitors,CD22 (Clusters of Differentiation 22) inhibitors,Antineovascularisation agents"
         }
       ]
     }
