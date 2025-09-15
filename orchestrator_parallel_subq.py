@@ -9,7 +9,7 @@ from langgraph.graph import StateGraph, END
 from langchain_openai import ChatOpenAI
 
 from langsmith.run_helpers import traceable
-from langchain_core.runnables import RunnableConfig  # add this import
+#from langchain_core.runnables import RunnableConfig
 
 from IPython.display import Image
 import re

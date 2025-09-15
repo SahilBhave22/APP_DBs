@@ -103,7 +103,7 @@
     },
     {
       "name": "public.domain_score_match",
-      "description": "Domain classification for Patient reported outcome (PRO) measure in trials",
+      "description": "Domain classification for Patient reported outcome (PRO) measure in trials. ONLY USE THIS IF PRO DOMAINS are asked.",
       "primary_key": [
         "nct_id"
       ],
@@ -191,7 +191,7 @@
     },
     {
       "name": "ctgov.baseline_measurements",
-      "description": "Summaries of demographic & baseline measures collected by arm or comparison group and for the entire population of participants in the clinical study.\u00a0",
+      "description": "Summaries of baseline measures collected .\u00a0",
       "primary_key": [
         "id"
       ],
@@ -214,26 +214,6 @@
         {
           "name": "ctgov_group_code",
           "type": "character varying",
-          "description": null
-        },
-        {
-          "name": "classification",
-          "type": "character varying",
-          "description": null
-        },
-        {
-          "name": "category",
-          "type": "character varying",
-          "description": null
-        },
-        {
-          "name": "title",
-          "type": "character varying",
-          "description": null
-        },
-        {
-          "name": "description",
-          "type": "text",
           "description": null
         },
         {
