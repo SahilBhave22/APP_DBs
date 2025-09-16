@@ -132,6 +132,8 @@ Rules:
     - Filter with WHERE rank_col <= N to return top-N per group.
     - Do not use a global LIMIT N, since that only applies across the whole result set.
     - Preserve deduplication (e.g., COUNT(DISTINCT demo.primaryid)) as usual.
+- Guidance for ROR / Signal analysis queries
+    - ALWAYS USE public.top_n_ror table for signal strength analysis.
 - Default LIMIT {default_limit} unless the user asks for more.
 - Keep the query readable and minimal (CTEs encouraged).
 - MAKE SURE THAT THE QUERY SYNTAX IS ACCURATE AND VALUES REFERENCED IN sub queries are used correctly

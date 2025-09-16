@@ -1340,17 +1340,6 @@
       "type": "many_to_one"
     },
     {
-      "from_table": "public.drug_trial_outcomes_pro",
-      "from_columns": [
-        "nct_id"
-      ],
-      "to_table": "public.drug_trials",
-      "to_columns": [
-        "nct_id"
-      ],
-      "type": "many_to_one"
-    },
-    {
       "from_table": "ctgov.baseline_counts",
       "from_columns": [
         "nct_id"
