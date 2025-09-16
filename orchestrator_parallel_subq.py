@@ -210,7 +210,7 @@ Instructions:
         if not want_chart:
             return {}
    
-        llm = ChatOpenAI(model="gpt-4o", temperature=0.1)
+        llm = ChatOpenAI(model="gpt-4o", temperature=0)
 
         def meta(df: Optional[pd.DataFrame]):
             if isinstance(df, pd.DataFrame) and len(df) > 0:
