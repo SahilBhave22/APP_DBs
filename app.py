@@ -8,6 +8,8 @@ from fdaers_agent import build_fdaers_agent
 from clinicaltrials_agent import build_clinicaltrials_agent
 from orchestrator_parallel_subq import build_orchestrator_parallel_subq
 from IPython.display import Image
+import plotly.io as pio
+
 
 st.set_page_config(page_title="FDAERS + Clinical Trials ", layout="wide")
 
@@ -46,7 +48,7 @@ def load_json(key: str, fallback: str):
         return json.load(f)
 
 @st.cache_resource
-def get_apps(safe_mode=True, default_limit=200):
+def get_apps(safe_mode=True, default_limit=200, want_chart = True,want_summary = True):
     if not FAERS_DB_URL or not AACT_DB_URL:
         st.error("Missing FAERS_DB_URL or AACT_DB_URL in secrets.")
         st.stop()
@@ -56,7 +58,7 @@ def get_apps(safe_mode=True, default_limit=200):
 
     faers_app = build_fdaers_agent(faers_catalog, fdaers_db_url=FAERS_DB_URL, safe_mode=safe_mode, default_limit=default_limit)
     aact_app  = build_clinicaltrials_agent(aact_catalog,  clinicaltrials_db_url=AACT_DB_URL,  safe_mode=safe_mode, default_limit=default_limit)
-    orch_app  = build_orchestrator_parallel_subq(faers_app, aact_app)
+    orch_app  = build_orchestrator_parallel_subq(faers_app, aact_app,want_chart,want_summary)
     #Image(orch_app().get_graph().draw_mermaid_png())
     return orch_app
 
@@ -64,7 +66,10 @@ st.title("FDAERS + Clinical Trials")
 
 with st.sidebar:
     st.header("Settings")
-    safe_mode = st.toggle("Safe mode (SELECT/WITH only)", value=True)
+    safe_mode = True #st.toggle("Safe mode (SELECT/WITH only)", value=True)
+    want_summary = st.toggle("Want a summary?", value = True)
+    want_chart = st.toggle("Want a chart?", value=True)
+    safe_mode = True #st.toggle("Safe mode (SELECT/WITH only)", value=True)
     default_limit = st.number_input("Default LIMIT", 10, 10000, 200, step=10)
 
 q = st.text_area(
@@ -78,7 +83,7 @@ if st.button("Run", type="primary"):
         st.error("Please enter a question.")
         st.stop()
 
-    orch = get_apps(safe_mode=safe_mode, default_limit=int(default_limit))
+    orch = get_apps(safe_mode=safe_mode, default_limit=int(default_limit), want_chart=want_chart,want_summary=want_summary)
     out = orch.invoke({"question": q})
 
     # Sidebar results per source
@@ -123,3 +128,10 @@ if st.button("Run", type="primary"):
     # with st.expander("Show orchestrator diagram", expanded=False):
     #     st.image(orch.get_graph().draw_mermaid_png()) 
     st.markdown(out.get("final_answer") or "_No summary produced_")
+
+    st.subheader("Data Chart")
+    if out.get("figure_json"):
+        fig = pio.from_json(out["figure_json"])
+        st.plotly_chart(fig, use_container_width=True)
+    elif out.get("chart_error"):
+        st.info(out["chart_error"])

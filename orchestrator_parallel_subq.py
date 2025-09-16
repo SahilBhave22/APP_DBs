@@ -10,6 +10,10 @@ from langchain_openai import ChatOpenAI
 
 from langsmith.run_helpers import traceable
 #from langchain_core.runnables import RunnableConfig
+import plotly.express as px
+import plotly.io as pio
+import types
+
 
 from IPython.display import Image
 import re
@@ -35,6 +39,8 @@ class OrchestratorState(TypedDict, total=False):
     aact_df: Optional[pd.DataFrame]
     aact_error: Optional[str]
 
+    figure_json: str
+    chart_source: str
     # Final
     final_answer: Optional[str]
 
@@ -118,7 +124,7 @@ Return JSON ONLY NO TRAILING CHARACTERS:
     }
 
 # ---------- Orchestrator builder (wire in your compiled agent apps) ----------
-def build_orchestrator_parallel_subq(faers_app, aact_app):
+def build_orchestrator_parallel_subq(faers_app, aact_app,want_chart,want_summary):
     """
     faers_app / aact_app are your compiled LangGraph agent apps from build_agent(...),
     which take {"question", "sql", "error", "attempts", "summary", "df"} and return with df/sql/error filled.
@@ -146,6 +152,8 @@ def build_orchestrator_parallel_subq(faers_app, aact_app):
         return {}
 
     def summarize_node(state: OrchestratorState) -> OrchestratorState:
+        if not want_summary:
+            return {}
         llm = ChatOpenAI(model="gpt-4o", temperature=0)
 
         def meta(df: Optional[pd.DataFrame]):
@@ -197,6 +205,115 @@ Instructions:
         ans = llm.invoke(prompt).content
         return {"final_answer": ans}
 
+    def plot_node(state: OrchestratorState) -> OrchestratorState:
+
+        if not want_chart:
+            return {}
+   
+        llm = ChatOpenAI(model="gpt-4o", temperature=0.1)
+
+        def meta(df: Optional[pd.DataFrame]):
+            if isinstance(df, pd.DataFrame) and len(df) > 0:
+                return {
+                    "rows": len(df),
+                    "cols": df.shape[1],
+                    "columns": [str(c) for c in df.columns][:50],
+                    "dtypes": {str(k): str(v) for k, v in df.dtypes.items()},
+                }
+            return {"rows": 0, "cols": 0, "columns": [], "dtypes": {}}
+
+        def choose_df(question: str, f_df: Optional[pd.DataFrame], a_df: Optional[pd.DataFrame]):
+            override = (state.get("plot_source") or "").lower()
+            if override in {"faers", "aact"}:
+                return (f_df, "faers") if override == "faers" else (a_df, "aact")
+            q = (question or "").lower()
+            f_len = len(f_df) if isinstance(f_df, pd.DataFrame) else 0
+            a_len = len(a_df) if isinstance(a_df, pd.DataFrame) else 0
+            if any(k in q for k in ["faers", "adverse", "ae", "meddra", "ror", "prr"]):
+                return (f_df, "faers")
+            if any(k in q for k in ["trial", "aact", "nct", "phase", "enrollment"]):
+                return (a_df, "aact")
+            if f_len >= a_len and f_len > 0:
+                return (f_df, "faers")
+            if a_len > 0:
+                return (a_df, "aact")
+            return (None, "none")
+
+        def run_safely(df, code: str):
+            # basic static hardening
+            banned = [
+                "__import__", "open(", "exec(", "eval(", "subprocess", "os.", "sys.",
+                "requests", "import ", "pickle", "shutil", "pathlib", "socket",
+                "pandas.read_", "to_csv", "to_excel", "plotly.io.write", "fig.write"
+            ]
+            low = code.lower()
+            if any(b in low for b in banned):
+                raise ValueError("Unsafe code detected in chart snippet.")
+            import plotly.graph_objects as go  # allowed
+            safe_globals = {
+                "__builtins__": types.MappingProxyType({}),  # strip builtins
+                "px": px, "go": go
+            }
+            safe_locals = {"df": df}
+            exec(code, safe_globals, safe_locals)  # code must set 'fig'
+            fig = safe_locals.get("fig")
+            if fig is None:
+                raise ValueError("The snippet did not create a variable named 'fig'.")
+            return fig
+
+        question = state.get("question") or ""
+        f_df = state.get("faers_df")
+        a_df = state.get("aact_df")
+        df_to_plot, source = choose_df(question, f_df, a_df)
+
+        if not isinstance(df_to_plot, pd.DataFrame) or len(df_to_plot) == 0:
+            return {"chart_error": "No data available for plotting from FAERS or AACT.", "chart_source": source}
+
+        fmeta = meta(f_df)
+        ameta = meta(a_df)
+        preview = df_to_plot.head(6).to_string(index=False)
+
+        prompt = f"""
+    You produce minimal Plotly Express code from a pandas DataFrame to visualize the user's question.
+
+    Rules:
+    - Use ONLY: df (pandas.DataFrame to plot), px (plotly.express), go (plotly.graph_objects optional).
+    - NO imports, files, network, or system access.
+    - End with a variable named: fig
+    - Use clear defaults: informative title, axis labels, and template='plotly_white'.
+    - Time trend -> line/area; categorical comparison -> bar; distribution -> histogram/box/violin; heatmap for matrix-like comparisons.
+    - Use ONLY columns that exist in df.
+
+    User question:
+    {question}
+
+    Chosen dataset to plot: {source.upper()}
+
+    DF preview (first 6 rows):
+    {preview}
+
+    FAERS columns: {fmeta['columns']}
+    AACT columns : {ameta['columns']}
+
+    Return ONLY Python code that uses df and px (and optionally go) and ends with:
+    fig = <plotly figure>
+    """
+        code = llm.invoke(prompt).content.strip()
+        if code.startswith("```"):
+            code = code.strip("` \n")
+            if "\n" in code and code.split("\n", 1)[0].lower().startswith("python"):
+                code = code.split("\n", 1)[1]
+
+        try:
+            fig = run_safely(df_to_plot, code)
+            fig.update_layout(template="plotly_white")
+            return {
+                "figure_json": fig.to_json(),
+                "chart_source": source,
+                # "chart_code": code,  # uncomment if you want to inspect snippets
+            }
+        except Exception as e:
+            return {"chart_error": f"Chart generation failed: {e}", "chart_source": source}
     # ---------- Graph (parallel fan-out) ----------
     graph = StateGraph(OrchestratorState)
     graph.add_node("router", router_node)
@@ -204,7 +321,7 @@ Instructions:
     graph.add_node("aact", call_aact)
     graph.add_node("gather", gather_node)
     graph.add_node("summarize", summarize_node)
-
+    graph.add_node("plot",plot_node)
     graph.set_entry_point("router")
 
     # Fan-out: run both agents concurrently; each checks its own flag
@@ -217,7 +334,8 @@ Instructions:
 
     # Summarize
     graph.add_edge("gather", "summarize")
-    graph.add_edge("summarize", END)
+    graph.add_edge("summarize","plot")
+    graph.add_edge("plot", END)
     
     graph_final = graph.compile()
     #Image(graph_final().get_graph().draw_mermaid_png())
