@@ -210,7 +210,7 @@ Instructions:
         if not want_chart:
             return {}
    
-        llm = ChatOpenAI(model="gpt-4o", temperature=0)
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 
         def meta(df: Optional[pd.DataFrame]):
             if isinstance(df, pd.DataFrame) and len(df) > 0:
@@ -248,6 +248,7 @@ Instructions:
             ]
             low = code.lower()
             if any(b in low for b in banned):
+                print(low)
                 raise ValueError("Unsafe code detected in chart snippet.")
             import plotly.graph_objects as go  # allowed
             safe_globals = {
@@ -278,7 +279,7 @@ Instructions:
 
     Rules:
     - Use ONLY: df (pandas.DataFrame to plot), px (plotly.express), go (plotly.graph_objects optional).
-    - NO imports, files, network, or system access.
+    - DO NOT add any imports, files, network, or system access statements
     - End with a variable named: fig
     - Use clear defaults: informative title, axis labels, and template='plotly_white'.
     - Time trend -> line/area; categorical comparison -> bar; distribution -> histogram/box/violin; heatmap for matrix-like comparisons.
@@ -307,12 +308,14 @@ Instructions:
         try:
             fig = run_safely(df_to_plot, code)
             fig.update_layout(template="plotly_white")
+            print("hello")
             return {
                 "figure_json": fig.to_json(),
                 "chart_source": source,
                 # "chart_code": code,  # uncomment if you want to inspect snippets
             }
         except Exception as e:
+            print(e)
             return {"chart_error": f"Chart generation failed: {e}", "chart_source": source}
     # ---------- Graph (parallel fan-out) ----------
     graph = StateGraph(OrchestratorState)
