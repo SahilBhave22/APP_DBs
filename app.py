@@ -135,3 +135,5 @@ if st.button("Run", type="primary"):
         st.plotly_chart(fig, use_container_width=True)
     elif out.get("chart_error"):
         st.info(out["chart_error"])
+    else:
+        st.markdown("_No Chart Produced_")
