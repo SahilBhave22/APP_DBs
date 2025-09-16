@@ -243,12 +243,12 @@ Instructions:
             # basic static hardening
             banned = [
                 "__import__", "open(", "exec(", "eval(", "subprocess", "os.", "sys.",
-                "requests", "import ", "pickle", "shutil", "pathlib", "socket",
+                "requests", "pickle", "shutil", "pathlib", "socket", "import "
                 "pandas.read_", "to_csv", "to_excel", "plotly.io.write", "fig.write"
             ]
             low = code.lower()
             if any(b in low for b in banned):
-                print(low)
+                #print(low)
                 raise ValueError("Unsafe code detected in chart snippet.")
             import plotly.graph_objects as go  # allowed
             safe_globals = {
@@ -279,10 +279,12 @@ Instructions:
 
     Rules:
     - Use ONLY: df (pandas.DataFrame to plot), px (plotly.express), go (plotly.graph_objects optional).
+    - ALL IMPORTS ARE ALREADY PRESENT, DO NOT ADD IMPORT STATEMENTS TO THE CODE.
     - DO NOT add any imports, files, network, or system access statements
     - End with a variable named: fig
     - Use clear defaults: informative title, axis labels, and template='plotly_white'.
     - Time trend -> line/area; categorical comparison -> bar; distribution -> histogram/box/violin; heatmap for matrix-like comparisons.
+    - Use a stacked bar chart wherever possible
     - Use ONLY columns that exist in df.
 
     User question:
@@ -308,7 +310,6 @@ Instructions:
         try:
             fig = run_safely(df_to_plot, code)
             fig.update_layout(template="plotly_white")
-            print("hello")
             return {
                 "figure_json": fig.to_json(),
                 "chart_source": source,
