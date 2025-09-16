@@ -1,6 +1,4 @@
 {
-  "version": "0.1-stub",
-  "generated_at": "2025-08-26T21:35:41.514148Z",
   "dialect": "postgresql",
   "description": "FAERS schema catalog (partially inferred from user queries). Replace/extend with your exact schema.",
   "tables": [
@@ -90,11 +88,6 @@
           "name": "brand_name",
           "type": "text",
           "description": "Brand name of the product (if known)."
-        },
-        {
-          "name": "prod_ai",
-          "type": "text",
-          "description": "Active ingredient name, if available."
         }
       ]
     },
