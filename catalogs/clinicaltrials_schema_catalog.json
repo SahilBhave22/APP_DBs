@@ -63,8 +63,42 @@
       ]
     },
     {
+      "name": "public.drug_trial_design_outcomes_pro",
+      "description": "Trial ids for relevant trials per drug having a Patient reported outcome (PRO) as a part of design outcomes.",
+      "primary_key": [
+        "nct_id"
+      ],
+      "columns": [
+        {
+          "name": "nct_id",
+          "type": "character varying",
+          "description": "foreign key referencing studies.nct_id"
+        },
+        {
+          "name": "brand_name",
+          "type": "character varying",
+          "description": "Brand name for the drug"
+        },
+        {
+          "name": "instrument_name",
+          "type": "character varying",
+          "description": "Name of the PRO instrument used to measure the outcome."
+        },
+        {
+          "name": "measure",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "description",
+          "type": "character varying",
+          "description": null
+        }
+      ]
+    },
+    {
       "name": "public.drug_trial_outcomes_pro",
-      "description": "Trial ids for relevant trials per drug having a Patient reported outcome (PRO) measure.",
+      "description": "Trial ids for relevant trials per drug having a Patient reported outcome (PRO) as a part of result outcomes",
       "primary_key": [
         "nct_id"
       ],
@@ -142,6 +176,30 @@
           "name": "criteria",
           "type": "character varying",
           "description": "Classification of PRO measure into sub-categorires. USE THIS COLUMN FOR ALL SUB-SCALE RELATED QUERIES."
+        }
+      ]
+    },
+    {
+      "name": "public.drug_result_groups",
+      "description": "Results groups in which the drug of interest was used",
+      "primary_key": [
+        "nct_id"
+      ],
+      "columns": [
+        {
+          "name": "nct_id",
+          "type": "character varying",
+          "description": "foreign key referencing studies.nct_id"
+        },
+        {
+          "name": "brand_name",
+          "type": "character varying",
+          "description": "Brand name for the drug"
+        },
+        {
+          "name":"result_group_id",
+          "type":"character varying",
+          "description":"foreign key referencing reported_events.result_group_id"
         }
       ]
     },
@@ -497,7 +555,7 @@
         {
           "name": "outcome_type",
           "type": "character varying",
-          "description": "Possible values are PRIMARY, SECONDARY, OTHER and null"
+          "description": "Possible values are primary, secondary, other and null"
         },
         {
           "name": "measure",
@@ -946,7 +1004,7 @@
     },
     {
       "name": "ctgov.reported_events",
-      "description": "Summary information about reported adverse events (any untoward or unfavorable medical occurrence to participants, including abnormal physical exams, laboratory findings, symptoms, or diseases), including serious adverse events, other adverse events, and mortality.",
+      "description": "Information about reported adverse events. ALWAYS join drug_result_groups to check if the group used a specific drug.",
       "primary_key": [
         "id"
       ],
@@ -1029,8 +1087,8 @@
       ]
     },
     {
-      "name": "ctgov.result_groups",
-      "description": "Consolidated, aggregate list of group titles/descriptions used for reporting summary results information.",
+      "name": "ctgov.drug_result_groups",
+      "description": "Consolidated list of group titles/descriptions used for reporting summary results information only for those arms where the drug is used.",
       "primary_key": [
         "id"
       ],

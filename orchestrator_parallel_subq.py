@@ -229,14 +229,10 @@ Instructions:
             q = (question or "").lower()
             f_len = len(f_df) if isinstance(f_df, pd.DataFrame) else 0
             a_len = len(a_df) if isinstance(a_df, pd.DataFrame) else 0
-            if any(k in q for k in ["faers", "adverse", "ae", "meddra", "ror", "prr"]):
-                return (f_df, "faers")
-            if any(k in q for k in ["trial", "aact", "nct", "phase", "enrollment"]):
+            if state.get("need_aact"):
                 return (a_df, "aact")
-            if f_len >= a_len and f_len > 0:
+            if state.get("need_faers"):
                 return (f_df, "faers")
-            if a_len > 0:
-                return (a_df, "aact")
             return (None, "none")
 
         def run_safely(df, code: str):
@@ -248,7 +244,7 @@ Instructions:
             ]
             low = code.lower()
             if any(b in low for b in banned):
-                #print(low)
+                print(low)
                 raise ValueError("Unsafe code detected in chart snippet.")
             import plotly.graph_objects as go  # allowed
             safe_globals = {
