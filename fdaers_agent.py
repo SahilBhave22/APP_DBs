@@ -158,10 +158,13 @@ Validator feedback:
     SYSTEM_EXPLAIN = f""" You are a SQL expert that is analysing a SQL query based on a question.
     Here is the question asked: {{question}}
     Here is the SQL query : {{sql}}
+    Here is the database info: {{schema_catalog}}
 
     Provide a clear explanation of the query that is suitable for a semi-technical audience.
     Explain in detail which tables are used, how they are joined and how the counts are taken.
-    STRICTLY limit your response to 100 words
+    Also explain what the tables mean and why these particular tables were used.
+     
+    STRICTLY limit your response to 150 words
     """
 
     llm = ChatOpenAI(model=os.getenv("FAERS_LLM_MODEL1", "gpt-4o"), temperature=0)
@@ -231,7 +234,8 @@ Validator feedback:
     
     def explain_sql(state: AgentState)-> AgentState:
         msgs = [
-            SystemMessage(SYSTEM_EXPLAIN.format(question=state["question"], sql = state["sql"]))
+            SystemMessage(SYSTEM_EXPLAIN.format(question=state["question"], sql = state["sql"], 
+                          schema_catalog = json.dumps(catalog)))
         ]
         explain = llm_mini.invoke(msgs).content.strip()
         
