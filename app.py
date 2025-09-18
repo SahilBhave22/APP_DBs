@@ -64,6 +64,7 @@ def get_apps(safe_mode=True, default_limit=200, want_chart = True,want_summary =
 
 st.title("FDAERS + Clinical Trials")
 
+
 with st.sidebar:
     st.header("Settings")
     safe_mode = True #st.toggle("Safe mode (SELECT/WITH only)", value=True)
@@ -93,7 +94,7 @@ if st.button("Run", type="primary"):
             fdf = out["faers_df"]
             with st.expander("FDAERS data"):
                 st.caption(f"{len(fdf):,} rows · {fdf.shape[1]} cols")
-                st.dataframe(fdf.head(500), use_container_width=True, hide_index=True)
+                st.dataframe(fdf.head(default_limit), use_container_width=True, hide_index=True)
                 st.download_button("Download FDAERS CSV", fdf.to_csv(index=False).encode("utf-8"), "faers_results.csv", use_container_width=True)
         if out.get("faers_sql"):
             with st.expander("FDAERS SQL query"):
@@ -111,7 +112,7 @@ if st.button("Run", type="primary"):
             adf = out["aact_df"]
             with st.expander("Clinical Trials data"):
                 st.caption(f"{len(adf):,} rows · {adf.shape[1]} cols")
-                st.dataframe(adf.head(500), use_container_width=True, hide_index=True)
+                st.dataframe(adf.head(default_limit), use_container_width=True, hide_index=True)
                 st.download_button("Download Clinical Trials CSV", adf.to_csv(index=False).encode("utf-8"), "aact_results.csv", use_container_width=True)
         if out.get("aact_sql"):
             with st.expander("Clinical Trials SQL query"):
