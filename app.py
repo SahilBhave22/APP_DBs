@@ -98,9 +98,9 @@ if st.button("Run", type="primary"):
         if out.get("faers_sql"):
             with st.expander("FDAERS SQL query"):
                 st.code(out["faers_sql"], language="sql")
-        if out.get("faers_subq"):
-            with st.expander("FAERS Sub-question"):
-                st.text(out["faers_subq"])
+        if out.get("faers_sql_explain"):
+            with st.expander("FAERS SQL Explained"):
+                st.text(out["faers_sql_explain"])
         if out.get("faers_error"):
             st.error(f"FAERS error: {out['faers_error']}")
 
@@ -116,9 +116,9 @@ if st.button("Run", type="primary"):
         if out.get("aact_sql"):
             with st.expander("Clinical Trials SQL query"):
                 st.code(out["aact_sql"], language="sql")
-        if out.get("aact_subq"):
-            with st.expander("Clinical Trials Sub-question"):
-                st.text(out["aact_subq"])
+        if out.get("aact_sql_explain"):
+            with st.expander("Clinical Trials SQL Explained"):
+                st.text(out["aact_sql_explain"])
         if out.get("aact_error"):
             st.error(f"AACT error: {out['aact_error']}")
 

@@ -70,6 +70,7 @@ class AgentState(TypedDict):
     attempts: int
     summary: Optional[str]
     df: Optional[pd.DataFrame]
+    sql_explain : Optional[str]
 
 
 # ----------------------------
@@ -132,6 +133,7 @@ Rules:
     - Filter with WHERE rank_col <= N to return top-N per group.
     - Do not use a global LIMIT N, since that only applies across the whole result set.
     - Preserve deduplication (e.g., COUNT(DISTINCT demo.primaryid)) as usual.
+- DO NOT USE ROR tables UNLESS USER SPECIFICALLY ASKS. DEFAULT CHOICE SHOULD BE COUNT(DISTINCT demo.primaryid)).
 - Guidance for ROR / Signal analysis queries
     - ALWAYS USE public.top_n_ror table for signal strength analysis.
 - Default LIMIT {default_limit} unless the user asks for more.
@@ -152,8 +154,19 @@ SCHEMA CATALOG:
 Validator feedback:
 {{feedback}}
 """
+    
+    SYSTEM_EXPLAIN = f""" You are a SQL expert that is analysing a SQL query based on a question.
+    Here is the question asked: {{question}}
+    Here is the SQL query : {{sql}}
+
+    Provide a clear explanation of the query that is suitable for a semi-technical audience.
+    Explain in detail which tables are used, how they are joined and how the counts are taken.
+    STRICTLY limit your response to 100 words
+    """
 
     llm = ChatOpenAI(model=os.getenv("FAERS_LLM_MODEL1", "gpt-4o"), temperature=0)
+    llm_mini = ChatOpenAI(model=os.getenv("FAERS_LLM_MODEL2", "gpt-4o-mini"), temperature=0)
+
 
     # -------- Nodes --------
     def draft_sql_node(state: AgentState) -> AgentState:
@@ -214,7 +227,16 @@ Validator feedback:
         # Up to 2 repairs; then try to run (or fail in run_sql if still invalid)
         if state["error"] and state["attempts"] < 2:
             return "revise_sql"
-        return "done"
+        return "explain"
+    
+    def explain_sql(state: AgentState)-> AgentState:
+        msgs = [
+            SystemMessage(SYSTEM_EXPLAIN.format(question=state["question"], sql = state["sql"]))
+        ]
+        explain = llm_mini.invoke(msgs).content.strip()
+        
+        state["sql_explain"] = explain
+        return state
 
     def done_node(state: AgentState) -> AgentState:
         # Nothing to do; terminal summarization could go here if desired.
@@ -226,6 +248,7 @@ Validator feedback:
     graph.add_node("validate_sql", validate_sql_node)
     graph.add_node("revise_sql", revise_sql_node)
     graph.add_node("run_sql", run_sql_node)
+    graph.add_node("explain_sql",explain_sql)
     graph.add_node("done", done_node)
 
     graph.set_entry_point("draft_sql")
@@ -240,9 +263,11 @@ Validator feedback:
     })
     graph.add_conditional_edges("run_sql", decide_next_after_run, {
         "revise_sql": "revise_sql",
-        "done": "done",
+        "explain": "explain_sql",
     })
-    #graph.add_edge("run_sql", "done")
+    
+    graph.add_edge("explain_sql", "done")
+
     graph.add_edge("done", END)
 
     app = graph.compile()

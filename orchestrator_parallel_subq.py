@@ -41,6 +41,9 @@ class OrchestratorState(TypedDict, total=False):
 
     figure_json: str
     chart_source: str
+
+    faers_sql_explain : Optional[str]
+    aact_sql_explain : Optional[str]
     # Final
     final_answer: Optional[str]
 
@@ -134,9 +137,12 @@ def build_orchestrator_parallel_subq(faers_app, aact_app,want_chart,want_summary
         if not state.get("need_faers"):
             return {}
         subq = state.get("faers_subq") or state["question"]
-        s_in = {"question": subq, "sql": None, "error": None, "attempts": 0, "summary": None, "df": None}
+        s_in = {"question": subq, "sql": None, "error": None, 
+                "attempts": 0, "summary": None, "df": None,"sq_explain":None}
         out = faers_app.invoke(s_in)
-        return {"faers_sql": out.get("sql"), "faers_df": out.get("df"), "faers_error": out.get("error")}
+        
+        return {"faers_sql": out.get("sql"), "faers_df": out.get("df"), 
+                "faers_error": out.get("error"), "faers_sql_explain":out.get("sql_explain")}
 
     @traceable(name="AACT Agent")
     def call_aact(state: OrchestratorState) -> OrchestratorState:
@@ -145,7 +151,8 @@ def build_orchestrator_parallel_subq(faers_app, aact_app,want_chart,want_summary
         subq = state.get("aact_subq") or state["question"]
         s_in = {"question": subq, "sql": None, "error": None, "attempts": 0, "summary": None, "df": None}
         out = aact_app.invoke(s_in)
-        return {"aact_sql": out.get("sql"), "aact_df": out.get("df"), "aact_error": out.get("error")}
+        return {"aact_sql": out.get("sql"), "aact_df": out.get("df"), 
+                "aact_error": out.get("error"), "aact_sql_explain":out.get("sql_explain")}
 
     def gather_node(state: OrchestratorState) -> OrchestratorState:
         # Barrier; nothing to compute—just ensures both agent branches completed.
@@ -314,6 +321,9 @@ Instructions:
         except Exception as e:
             print(e)
             return {"chart_error": f"Chart generation failed: {e}", "chart_source": source}
+        
+    
+    
     # ---------- Graph (parallel fan-out) ----------
     graph = StateGraph(OrchestratorState)
     graph.add_node("router", router_node)
