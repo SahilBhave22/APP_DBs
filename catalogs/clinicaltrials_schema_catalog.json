@@ -204,6 +204,30 @@
       ]
     },
     {
+      "name": "public.drug_trial_outcome_categories",
+      "description": "Trial outcomes categorized into broad categories",
+      "primary_key": [
+        "nct_id"
+      ],
+      "columns": [
+        {
+          "name": "nct_id",
+          "type": "character varying",
+          "description": "foreign key referencing studies.nct_id"
+        },
+        {
+          "name": "outcome_id",
+          "type": "character varying",
+          "description": "foreign key referencing ctgov.outcomes.id"
+        },
+        {
+          "name":"category",
+          "type":"character varying",
+          "description":"Catgeory of outcome. Possible values are like OS, PFS, ORR, TTR, TTP, CR, etc."
+        }
+      ]
+    },
+    {
       "name": "ctgov.baseline_counts",
       "description": "Sample size at baseline for each study group; usually a count of participants but can represent other units of measure such as 'hands', 'hips', etc.",
       "primary_key": [
@@ -1087,7 +1111,7 @@
       ]
     },
     {
-      "name": "ctgov.drug_result_groups",
+      "name": "public.drug_result_groups",
       "description": "Consolidated list of group titles/descriptions used for reporting summary results information only for those arms where the drug is used.",
       "primary_key": [
         "id"
