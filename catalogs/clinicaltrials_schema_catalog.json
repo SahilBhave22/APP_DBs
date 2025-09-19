@@ -972,7 +972,7 @@
         {
           "name": "outcome_type",
           "type": "character varying",
-          "description": "Possible values: PRIMARY,SECONDARY,OTHER,NULL"
+          "description": "Possible values: PRIMARY,SECONDARY,OTHER,NULL."
         },
         {
           "name": "title",
