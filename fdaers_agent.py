@@ -133,6 +133,8 @@ Rules:
     - Filter with WHERE rank_col <= N to return top-N per group.
     - Do not use a global LIMIT N, since that only applies across the whole result set.
     - Preserve deduplication (e.g., COUNT(DISTINCT demo.primaryid)) as usual.
+- When SOC/ Organ system level counts are asked, ALWAYS GROUP BY PT and take sum for all PTs within every SOC.
+- For SOC/ Organ System level counts, DO NOT GROUP BY SOC, always group by PT and take summation.
 - DO NOT USE ROR tables UNLESS USER SPECIFICALLY ASKS. DEFAULT CHOICE SHOULD BE COUNT(DISTINCT demo.primaryid)).
 - Guidance for ROR / Signal analysis queries
     - ALWAYS USE public.top_n_ror table for signal strength analysis.
