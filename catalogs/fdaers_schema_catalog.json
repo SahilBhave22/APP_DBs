@@ -88,6 +88,11 @@
           "name": "brand_name",
           "type": "text",
           "description": "Brand name of the product (if known)."
+        },
+        {
+          "name": "role_cod",
+          "type": "text",
+          "description": "Role of the drug in the case. Possible values PS: Primary Suspect, SS: Secondary Suspect, C: Concominant"
         }
       ]
     },
@@ -123,6 +128,11 @@
           "name": "route",
           "type": "text",
           "description": "Route of administration (if available)."
+        },
+        {
+          "name": "role_cod",
+          "type": "text",
+          "description": "Role of the drug in the case. Possible values PS: Primary Suspect, SS: Secondary Suspect, C: Concominant"
         }
       ]
     },
