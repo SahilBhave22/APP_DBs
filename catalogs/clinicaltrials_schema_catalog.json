@@ -121,7 +121,7 @@
         {
           "name": "outcome_id",
           "type": "character varying",
-          "description": "foreign key referencing outcomes.id. ALWAYS USE THIS TO CONNECT TO OUTCOMES TABLE."
+          "description": "foreign key referencing outcomes.id. ALWAYS USE THIS TO CONNECT TO OUTCOMES or outcome_measurements TABLE."
         },
         {
           "name": "title",
@@ -199,7 +199,7 @@
         {
           "name":"result_group_id",
           "type":"character varying",
-          "description":"foreign key referencing reported_events.result_group_id"
+          "description":"foreign key referencing reported_events.result_group_id and result_groups.id"
         }
       ]
     },
@@ -228,8 +228,27 @@
       ]
     },
     {
-      "name": "ctgov.baseline_counts",
-      "description": "Sample size at baseline for each study group; usually a count of participants but can represent other units of measure such as 'hands', 'hips', etc.",
+      "name": "public.drug_result_groups",
+      "description": "Results groups in which the drug of interest was used",
+      "primary_key": [
+        "nct_id"
+      ],
+      "columns": [
+        {
+          "name": "nct_id",
+          "type": "character varying",
+          "description": "foreign key referencing studies.nct_id"
+        },
+        {
+          "name":"id",
+          "type":"integer",
+          "description":"foreign key referencing reported_events.result_group_id"
+        }
+      ]
+    },
+    {
+      "name": "ctgov.result_groups",
+      "description": "Result groups information",
       "primary_key": [
         "id"
       ],
@@ -851,18 +870,13 @@
           "description": "primary key"
         },
         {
-          "name": "nct_id",
-          "type": "character varying",
-          "description": "foreign key referencing studies.nct_id"
-        },
-        {
           "name": "outcome_id",
-          "type": "integer",
-          "description": null
+          "type": "character varying",
+          "description": "foreign key referencing ctgov.outcomes.id"
         },
         {
           "name": "result_group_id",
-          "type": "integer",
+          "type": "character varying",
           "description": null
         },
         {
@@ -873,7 +887,7 @@
         {
           "name": "classification",
           "type": "character varying",
-          "description": null
+          "description": "CHECK for all Possible values indicating scores for baseline: baseline, cycle 1 day 1, week 1 day 1, month 1 day 1"
         },
         {
           "name": "category",
@@ -883,12 +897,12 @@
         {
           "name": "title",
           "type": "character varying",
-          "description": null
+          "description": "Name or title of the outcome that is measured."
         },
         {
           "name": "description",
           "type": "text",
-          "description": null
+          "description": "Descriptions of outcomes measured."
         },
         {
           "name": "units",
@@ -962,7 +976,7 @@
         {
           "name": "id",
           "type": "integer",
-          "description": "primary key"
+          "description": "foreign key referencing ctgov.outcome_measurements.outcome_id"
         },
         {
           "name": "nct_id",
@@ -1422,15 +1436,15 @@
       "type": "many_to_one"
     },
     {
-      "from_table": "ctgov.baseline_counts",
+      "from_table": "public.drug_trial_outcomes_pro",
       "from_columns": [
-        "nct_id"
+        "outcome_id"
       ],
-      "to_table": "ctgov.studies",
+      "to_table": "ctgov.outcome_measurements",
       "to_columns": [
-        "nct_id"
+        "outcome_id"
       ],
-      "type": "many_to_one"
+      "type": "many_to_many"
     },
     {
       "from_table": "ctgov.baseline_measurements",
@@ -1456,39 +1470,6 @@
     },
     {
       "from_table": "ctgov.browse_interventions",
-      "from_columns": [
-        "nct_id"
-      ],
-      "to_table": "ctgov.studies",
-      "to_columns": [
-        "nct_id"
-      ],
-      "type": "many_to_one"
-    },
-    {
-      "from_table": "ctgov.calculated_values",
-      "from_columns": [
-        "nct_id"
-      ],
-      "to_table": "ctgov.studies",
-      "to_columns": [
-        "nct_id"
-      ],
-      "type": "many_to_one"
-    },
-    {
-      "from_table": "ctgov.conditions",
-      "from_columns": [
-        "nct_id"
-      ],
-      "to_table": "ctgov.studies",
-      "to_columns": [
-        "nct_id"
-      ],
-      "type": "many_to_one"
-    },
-    {
-      "from_table": "ctgov.countries",
       "from_columns": [
         "nct_id"
       ],
@@ -1544,73 +1525,7 @@
       "type": "many_to_one"
     },
     {
-      "from_table": "ctgov.eligibilities",
-      "from_columns": [
-        "nct_id"
-      ],
-      "to_table": "ctgov.studies",
-      "to_columns": [
-        "nct_id"
-      ],
-      "type": "many_to_one"
-    },
-    {
-      "from_table": "ctgov.facilities",
-      "from_columns": [
-        "nct_id"
-      ],
-      "to_table": "ctgov.studies",
-      "to_columns": [
-        "nct_id"
-      ],
-      "type": "many_to_one"
-    },
-    {
-      "from_table": "ctgov.intervention_other_names",
-      "from_columns": [
-        "nct_id"
-      ],
-      "to_table": "ctgov.studies",
-      "to_columns": [
-        "nct_id"
-      ],
-      "type": "many_to_one"
-    },
-    {
       "from_table": "ctgov.interventions",
-      "from_columns": [
-        "nct_id"
-      ],
-      "to_table": "ctgov.studies",
-      "to_columns": [
-        "nct_id"
-      ],
-      "type": "many_to_one"
-    },
-    {
-      "from_table": "ctgov.outcome_analyses",
-      "from_columns": [
-        "nct_id"
-      ],
-      "to_table": "ctgov.studies",
-      "to_columns": [
-        "nct_id"
-      ],
-      "type": "many_to_one"
-    },
-    {
-      "from_table": "ctgov.outcome_analysis_groups",
-      "from_columns": [
-        "nct_id"
-      ],
-      "to_table": "ctgov.studies",
-      "to_columns": [
-        "nct_id"
-      ],
-      "type": "many_to_one"
-    },
-    {
-      "from_table": "ctgov.outcome_counts",
       "from_columns": [
         "nct_id"
       ],
@@ -1643,29 +1558,7 @@
       "type": "many_to_one"
     },
     {
-      "from_table": "ctgov.reported_event_totals",
-      "from_columns": [
-        "nct_id"
-      ],
-      "to_table": "ctgov.studies",
-      "to_columns": [
-        "nct_id"
-      ],
-      "type": "many_to_one"
-    },
-    {
       "from_table": "ctgov.reported_events",
-      "from_columns": [
-        "nct_id"
-      ],
-      "to_table": "ctgov.studies",
-      "to_columns": [
-        "nct_id"
-      ],
-      "type": "many_to_one"
-    },
-    {
-      "from_table": "ctgov.responsible_parties",
       "from_columns": [
         "nct_id"
       ],
@@ -1687,29 +1580,7 @@
       "type": "many_to_one"
     },
     {
-      "from_table": "ctgov.result_contacts",
-      "from_columns": [
-        "nct_id"
-      ],
-      "to_table": "ctgov.studies",
-      "to_columns": [
-        "nct_id"
-      ],
-      "type": "many_to_one"
-    },
-    {
       "from_table": "ctgov.result_groups",
-      "from_columns": [
-        "nct_id"
-      ],
-      "to_table": "ctgov.studies",
-      "to_columns": [
-        "nct_id"
-      ],
-      "type": "many_to_one"
-    },
-    {
-      "from_table": "ctgov.sponsors",
       "from_columns": [
         "nct_id"
       ],

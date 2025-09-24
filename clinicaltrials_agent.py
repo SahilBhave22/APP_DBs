@@ -42,6 +42,7 @@ def clean_sql(sql: str) -> str:
     s = sql.strip()
     s = re.sub(r"^```[a-zA-Z]*\s*", "", s)  # remove opening ``` / ```sql
     s = re.sub(r"\s*```$", "", s)           # remove trailing ```
+    s = re.sub(r"::text","::varchar",s)
     return s.strip()
 
 DISALLOWED = re.compile(r"\b(insert|update|delete|drop|alter|create|copy|grant|revoke|truncate|vacuum)\b", re.I)
@@ -109,6 +110,7 @@ def exec_sql(clinicaltrials_db_url: str, sql: str) -> pd.DataFrame:
 # ----------------------------
 def build_clinicaltrials_agent(
     catalog: Dict[str, Any],
+    sample_queries :Dict[str, Any],
     *,
     clinicaltrials_db_url: Optional[str] = None,
     safe_mode: bool = True,
@@ -133,9 +135,11 @@ def build_clinicaltrials_agent(
 Rules:
 - Output ONE SQL query only (no commentary, no code fences).
 - Read-only: WITH/SELECT only; never DDL/DML or COPY.
-- BE VERY CAREFUL TO CHECK COLUMN DATA TYPES WHILE JOINING TABLES.
+- ALWAYS CHECK data types of columns BEFORE joining tables.
+- ALWAYS CHECK which columns are asked by the use and return all of them.
+- ALWAYS CAST ALL types of id to varchar.
 - ALWAYS USE public.drug_trials TABLE TO GET TRIAL IDS FOR A PARTICULAR DRUG. 
-- DO NOT USE pro related tables unless user explicitly mentions.
+- DO NOT USE PRO related tables unless user explicitly mentions.
 - Guidelines for endpoint/ outcome related queries
     - Endpoints mean outcomes.
     - BE very careful to check whether design outcomes or actual outcomes are asked.
@@ -146,8 +150,9 @@ Rules:
 - Guidelines for PRO related queries:
     - ALWAYS USE public.drug_trial_outcomes_pro TABLE to get trial ids and outcome ids for patient reported outcomes (PRO) measures.
     - ALWAYS USE public.domain_score_match to get PRO domain or sub-scale information.
+    - ALWAYS JOIN public.drug_trial_outcomes_pro using nct_id AND outcome_id BOTH
 - ONLY USE FROM POSSIBLE VALUES GIVEN IN COLUMN DESCRIPTION
-- MAKE SURE THE QUERY HAS CORRECT SYNTAX
+- MAKE SURE THE QUERY HAS CORRECT POSTGRESQL SYNTAX
 - Use only tables/columns that appear in the SCHEMA CATALOG below.
 - ALWAYS take counts of unique nct ids.
 - Case-insensitive filters: use ILIKE for text.
@@ -163,10 +168,16 @@ Guidance for comparative queries
     - Preserve deduplication (e.g., COUNT(DISTINCT nct_id)) as usual.
 - Default LIMIT {default_limit} unless the user asks for more.
 - Keep the query readable and minimal (CTEs encouraged).
-- Only join via keys indicated by JOIN HINTS.
+- DO NOT AGGREGATE or AVERAGE any values unless specifically asked.
 
 SCHEMA CATALOG:
 {json.dumps(catalog)}
+
+
+SAMPLE QUERIES for guidance: 
+{json.dumps(sample_queries)}
+
+- DO NOT CHANGE SAMPLE QUERIES, USE IT AS IT IS.
 
 - Preserve user intent; keep :snake_case parameters; end with ONE SQL query only.
 

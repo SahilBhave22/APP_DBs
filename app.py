@@ -55,9 +55,10 @@ def get_apps(safe_mode=True, default_limit=200, want_chart = True,want_summary =
 
     faers_catalog = load_json("faers_schema_catalog", "faers_schema_catalog.json")
     aact_catalog  = load_json("clinicaltrials_schema_catalog",  "aact_schema_catalog.json")
+    aact_sample_queries = load_json("clinicaltrials_sample_queries",  "clinicaltrials_sample_queries.json")
 
     faers_app = build_fdaers_agent(faers_catalog, fdaers_db_url=FAERS_DB_URL, safe_mode=safe_mode, default_limit=default_limit)
-    aact_app  = build_clinicaltrials_agent(aact_catalog,  clinicaltrials_db_url=AACT_DB_URL,  safe_mode=safe_mode, default_limit=default_limit)
+    aact_app  = build_clinicaltrials_agent(aact_catalog,  aact_sample_queries,  clinicaltrials_db_url=AACT_DB_URL,  safe_mode=safe_mode, default_limit=default_limit)
     orch_app  = build_orchestrator_parallel_subq(faers_app, aact_app,want_chart,want_summary)
     #Image(orch_app().get_graph().draw_mermaid_png())
     return orch_app
