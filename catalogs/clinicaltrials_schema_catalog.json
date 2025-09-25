@@ -126,7 +126,7 @@
         {
           "name": "title",
           "type": "character varying",
-          "description": "Name or title of the outcome that is measured."
+          "description": "ALWAYS include title in the result when outcomes or outcome names are asked."
         },
         {
           "name": "description",
