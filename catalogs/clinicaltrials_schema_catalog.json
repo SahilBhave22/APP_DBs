@@ -194,7 +194,7 @@
         {
           "name": "brand_name",
           "type": "character varying",
-          "description": "Brand name for the drug"
+          "description": "foreign key referencing drug_trial_outcomes.brand_name"
         },
         {
           "name":"result_group_id",

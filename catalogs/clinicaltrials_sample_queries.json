@@ -3,8 +3,8 @@
     [
       { 
         "question": "Give me baseline scores reported for Bavencio trials that used EQ-5D-5L as PRO instrument",
-        "SQL query": "select dpo.brand_name,dpo.instrument_name,dpo.nct_id,rg.title as result_group_title,om.title as outcome_title ,om.param_value as pro_score ,om.units,om.param_type as score_type from ctgov.outcome_measurements om join public.drug_trial_outcomes_pro dpo on om.outcome_id::varchar = dpo.outcome_id and om.nct_id::varchar = dpo.nct_id join public.drug_result_groups drg on om.nct_id = drg.nct_id and om.result_group_id::varchar = drg.result_group_id join ctgov.result_groups rg on drg.nct_id = rg.nct_id and drg.result_group_id = rg.id::varchar where dpo.brand_name = 'Ibrance' and dpo.instrument_name like '%EQ-5D-5L%' and (om.classification ilike any (array['%cycle 1 day 1%','%baseline%','%week 1 day 1%','%month 1 day 1%']));",
-        "instructions": "Always join drug_trial_outcomes_pro to outcome_measurements using nct_id and outcome_id both. Always type cast all id columns to VARCHAR."
+        "SQL query": "select dpo.brand_name,dpo.instrument_name,dpo.nct_id,rg.title as result_group_title,om.title as outcome_title ,om.param_value as pro_score ,om.units,om.param_type as score_type from ctgov.outcome_measurements om join public.drug_trial_outcomes_pro dpo on om.outcome_id::varchar = dpo.outcome_id and om.nct_id::varchar = dpo.nct_id join public.drug_result_groups drg on om.nct_id = drg.nct_id and om.result_group_id::varchar = drg.result_group_id and dpo.brand_name = drg.brand_name ctgov.result_groups rg on drg.nct_id = rg.nct_id and drg.result_group_id = rg.id::varchar where dpo.brand_name = 'Ibrance' and dpo.instrument_name like '%EQ-5D-5L%' and (om.classification ilike any (array['%cycle 1 day 1%','%baseline%','%week 1 day 1%','%month 1 day 1%']));",
+        "instructions": " Always type cast all id columns to VARCHAR. Always join drug_trial_outcomes_pro to outcome_measurements using nct_id and outcome_id both. Always join drug using nct_id, result_group_id and brand_name all THREE."
     }
     ]
 }
