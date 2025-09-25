@@ -126,7 +126,7 @@
         {
           "name": "title",
           "type": "character varying",
-          "description": null
+          "description": "Name or title of the outcome that is measured."
         },
         {
           "name": "description",

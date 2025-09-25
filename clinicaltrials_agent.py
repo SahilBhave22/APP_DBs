@@ -189,7 +189,7 @@ Validator feedback:
     SYSTEM_REVISE = f"""You are repairing a PostgreSQL query to satisfy validator feedback.
 
 - Keep WITH/SELECT only (no DDL/DML).
-
+- Always check if all types of id are cast to VARCHAR.
 - Preserve user intent; keep :snake_case parameters; end with ONE SQL query only.
 
 Validator feedback:
