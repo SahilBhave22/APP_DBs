@@ -306,7 +306,7 @@ Instructions:
             import plotly.graph_objects as go  # allowed
             safe_globals = {
                 "__builtins__": types.MappingProxyType({}),  # strip builtins
-                "px": px, "go": go
+                "px": px, "go": go, "pd":pd
             }
             safe_locals = {"df": df}
             exec(code, safe_globals, safe_locals)  # code must set 'fig'
@@ -363,7 +363,7 @@ Instructions:
             if "\n" in code and code.split("\n", 1)[0].lower().startswith("python"):
                 code = code.split("\n", 1)[1]
 
-        #print(code)
+        print(code)
         try:
             fig = run_safely(df_to_plot, code)
             fig.update_layout(template="plotly_white")
