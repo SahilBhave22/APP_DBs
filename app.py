@@ -6,6 +6,7 @@ from urllib.parse import quote_plus
 
 from fdaers_agent import build_fdaers_agent
 from clinicaltrials_agent import build_clinicaltrials_agent
+from pricing_agent import build_pricing_agent
 from orchestrator_parallel_subq import build_orchestrator_parallel_subq
 from IPython.display import Image
 import plotly.io as pio
@@ -24,9 +25,11 @@ DB_USER   = st.secrets.get("db_user")
 DB_PASS   = st.secrets.get("db_pass")
 DB_NAME_AACT   = st.secrets.get("db_name_aact")
 DB_NAME_FDAERS = st.secrets.get("db_name_fdaers")
+DB_NAME_PRICING = st.secrets.get("db_name_pricing")
 
 FAERS_DB_URL =  f"postgresql://{DB_USER}:{DB_PASS}@{PUBLIC_IP}:5432/{DB_NAME_FDAERS}?sslmode=require&connect_timeout=70"
 AACT_DB_URL = f"postgresql://{DB_USER}:{DB_PASS}@{PUBLIC_IP}:5432/{DB_NAME_AACT}?sslmode=require&connect_timeout=70"
+PRICING_DB_URL = f"postgresql://{DB_USER}:{DB_PASS}@{PUBLIC_IP}:5432/{DB_NAME_PRICING}?sslmode=require&connect_timeout=70"
 
 
 #FAERS_DB_URL   = st.secrets.get("faers_db_url")
@@ -55,11 +58,13 @@ def get_apps(safe_mode=True, default_limit=200, want_chart = True,want_summary =
 
     faers_catalog = load_json("faers_schema_catalog", "faers_schema_catalog.json")
     aact_catalog  = load_json("clinicaltrials_schema_catalog",  "aact_schema_catalog.json")
+    pricing_catalog  = load_json("pricing_schema_catalog",  "pricing_schema_catalog.json")
     aact_sample_queries = load_json("clinicaltrials_sample_queries",  "clinicaltrials_sample_queries.json")
 
     faers_app = build_fdaers_agent(faers_catalog, fdaers_db_url=FAERS_DB_URL, safe_mode=safe_mode, default_limit=default_limit)
     aact_app  = build_clinicaltrials_agent(aact_catalog,  aact_sample_queries,  clinicaltrials_db_url=AACT_DB_URL,  safe_mode=safe_mode, default_limit=default_limit)
-    orch_app  = build_orchestrator_parallel_subq(faers_app, aact_app,want_chart,want_summary)
+    pricing_app  = build_pricing_agent(pricing_catalog,  pricing_db_url=PRICING_DB_URL,  safe_mode=safe_mode, default_limit=default_limit)
+    orch_app  = build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app,want_chart,want_summary)
     #Image(orch_app().get_graph().draw_mermaid_png())
     return orch_app
 
@@ -123,6 +128,24 @@ if st.button("Run", type="primary"):
                 st.text(out["aact_sql_explain"])
         if out.get("aact_error"):
             st.error(f"AACT error: {out['aact_error']}")
+
+        st.divider()
+        
+        st.subheader("Pricing")
+        if isinstance(out.get("pricing_df"), pd.DataFrame):
+            pdf = out["pricing_df"]
+            with st.expander("Pricing data"):
+                st.caption(f"{len(pdf):,} rows · {pdf.shape[1]} cols")
+                st.dataframe(pdf.head(default_limit), use_container_width=True, hide_index=True)
+                st.download_button("Download Pricing Data CSV", pdf.to_csv(index=False).encode("utf-8"), "pricing_results.csv", use_container_width=True)
+        if out.get("pricing_sql"):
+            with st.expander("Pricing SQL query"):
+                st.code(out["pricing_sql"], language="sql")
+        if out.get("Pricing_sql_explain"):
+            with st.expander("Pricing SQL Explained"):
+                st.text(out["pricing_sql_explain"])
+        if out.get("pricing_error"):
+            st.error(f"PRICING error: {out['pricing_error']}")
 
     # Main pane: router rationale + summary
     st.caption(out.get("router_rationale") or "No router rationale")

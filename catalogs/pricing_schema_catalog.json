@@ -1,0 +1,65 @@
+{
+  "dialect": "postgresql",
+  "description": "Pricing Schema Catalog",
+  "tables": [
+    {
+      "name": "pricing_calculations",
+      "description": "Pricing Data for brand names",
+      "primary_key": [
+        "ndc"
+      ],
+      "columns": [
+        {
+          "name": "ndc",
+          "type": "varchar",
+          "description": "NDC Code for the brand name"
+        },
+        {
+          "name": "brand_name",
+          "type": "varchar",
+          "description": "brand name of the drug"
+        },
+        {
+          "name": "wac_unit_effective_date",
+          "type": "datetime",
+          "description": "date for update of wac unit price which is used to calculate annual cost"
+        },
+        {
+          "name": "total_cost_of_therapy",
+          "type": "numeric",
+          "description": "total annual cost of the drug for the specific NDC code"
+        }
+      ]
+    },
+    {
+      "name": "historical_pricing",
+      "description": "WAC unit prices for all NDC codes over time",
+      "primary_key": [
+        "ndc"
+        ],
+        "columns": [
+          {
+            "name": "ndc",
+            "type": "varchar",
+            "description": "NDC Code for the brand name"
+          },
+          {
+            "name": "brand_name",
+            "type": "varchar",
+            "description": "brand name of the drug"
+          },
+          {
+            "name": "wac_unit_price",
+            "type": "numeric",
+            "description": "wac unit price reported at wac_unit_effective_date"
+          },
+          {
+            "name": "wac_unit_effective_date",
+            "type": "datetime",
+            "description": "date for update of wac unit price"
+          }
+        
+        ]
+    }
+  ]
+}

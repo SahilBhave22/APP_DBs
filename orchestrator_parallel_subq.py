@@ -25,9 +25,12 @@ class OrchestratorState(TypedDict, total=False):
     # Router outputs (fan-out flags + sub-questions)
     need_faers: bool
     need_aact: bool
+    need_pricing : bool
     router_rationale: str
     faers_subq: Optional[str]
     aact_subq: Optional[str]
+    pricing_subq: Optional[str]
+
 
     # FAERS artifacts
     faers_sql: Optional[str]
@@ -39,11 +42,17 @@ class OrchestratorState(TypedDict, total=False):
     aact_df: Optional[pd.DataFrame]
     aact_error: Optional[str]
 
+    # PRICING artifacts
+    pricing_sql: Optional[str]
+    pricing_df: Optional[pd.DataFrame]
+    pricing_error: Optional[str]
+
     figure_json: str
     chart_source: str
 
     faers_sql_explain : Optional[str]
     aact_sql_explain : Optional[str]
+    pricing_sql_explain : Optional[str]
     # Final
     final_answer: Optional[str]
 
@@ -52,6 +61,7 @@ class OrchestratorState(TypedDict, total=False):
 class Signals:
     faers_terms: list[str]
     aact_terms: list[str]
+    pricing_terms: list[str]
 
 def default_signals() -> Signals:
     return Signals(
@@ -68,6 +78,9 @@ def default_signals() -> Signals:
             "sponsor","condition","eligibility","inclusion","exclusion",
             "recruiting","completion date","results","arms","outcomes","patient reported","PRO"
         ],
+        pricing_terms=[
+            "pricing","annual price", "cycle","price change"
+        ],
     )
 
 def router_node(state: OrchestratorState) -> OrchestratorState:
@@ -83,6 +96,7 @@ def router_node(state: OrchestratorState) -> OrchestratorState:
         "Guidance:\n"
         "- FAERS for spontaneous safety. Take aggregates across primary ids. \n"
         "- AACT for trials .Take aggregates across nct ids.\n"
+        "- PRICING for drug pricing information. \n "
         "- If the user intent implies both, set both booleans true.\n"
         "- If the user criteria applies to both databases, frame sub-questions accordingly.\n"
         "- Sub-questions should be in natural language and should only be extracted from the original question\n"
@@ -94,14 +108,17 @@ User question:
 
 FAERS hints: {", ".join(sig.faers_terms)}
 AACT hints: {", ".join(sig.aact_terms)}
+PRICING hints: {", ".join(sig.pricing_terms)}
 
 Return JSON ONLY NO TRAILING CHARACTERS:
 {{
   "need_faers": <bool>,
   "need_aact": <bool>,
+  "need_pricing": <bool>,
   "router_rationale": "<string>",
   "faers_subq": "<string or null>",
   "aact_subq": "<string or null>"
+  "pricing_subq": "<string or null>"
 }}
 """
     try:
@@ -113,21 +130,25 @@ Return JSON ONLY NO TRAILING CHARACTERS:
         data = {
             "need_faers": True,
             "need_aact": False,
+            "need_pricing": False,
             "router_rationale": "Fallback: parse error; defaulting to FAERS only.",
             "faers_subq": state["question"],
-            "aact_subq": None
+            "aact_subq": None,
+            "pricing_subq": None
         }
 
     return {
         "need_faers": bool(data.get("need_faers", False)),
         "need_aact": bool(data.get("need_aact", False)),
+        "need_pricing": bool(data.get("need_pricing", False)),
         "router_rationale": data.get("router_rationale", ""),
         "faers_subq": data.get("faers_subq"),
         "aact_subq": data.get("aact_subq"),
+        "pricing_subq": data.get("pricing_subq"),
     }
 
 # ---------- Orchestrator builder (wire in your compiled agent apps) ----------
-def build_orchestrator_parallel_subq(faers_app, aact_app,want_chart,want_summary):
+def build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app,want_chart,want_summary):
     """
     faers_app / aact_app are your compiled LangGraph agent apps from build_agent(...),
     which take {"question", "sql", "error", "attempts", "summary", "df"} and return with df/sql/error filled.
@@ -153,6 +174,19 @@ def build_orchestrator_parallel_subq(faers_app, aact_app,want_chart,want_summary
         out = aact_app.invoke(s_in)
         return {"aact_sql": out.get("sql"), "aact_df": out.get("df"), 
                 "aact_error": out.get("error"), "aact_sql_explain":out.get("sql_explain")}
+    
+    @traceable(name="PRICING Agent")
+    def call_faers(state: OrchestratorState) -> OrchestratorState:
+        if not state.get("need_pricing"):
+            return {}
+        subq = state.get("pricing_subq") or state["question"]
+        s_in = {"question": subq, "sql": None, "error": None, 
+                "attempts": 0, "summary": None, "df": None,"sq_explain":None}
+        out = pricing_app.invoke(s_in)
+        
+        return {"pricing_sql": out.get("sql"), "pricing_df": out.get("df"), 
+                "pricing_error": out.get("error"), "pricing_sql_explain":out.get("sql_explain")}
+
 
     def gather_node(state: OrchestratorState) -> OrchestratorState:
         # Barrier; nothing to compute—just ensures both agent branches completed.
@@ -175,7 +209,7 @@ def build_orchestrator_parallel_subq(faers_app, aact_app,want_chart,want_summary
 
         fmeta = meta(state.get("faers_df"))
         ameta = meta(state.get("aact_df"))
-
+        pmeta = meta(state.get("pricing_df"))
         prompt = f"""
 Write a concise, decision-ready report using the available sources.
 
@@ -186,6 +220,7 @@ Router:
 - Rationale: {state.get('router_rationale')}
 - FAERS sub-question: {state.get('faers_subq') or '—'}
 - AACT  sub-question: {state.get('aact_subq') or '—'}
+- PRICING  sub-question: {state.get('pricing_subq') or '—'}
 
 FAERS:
 - rows: {fmeta['rows']}, cols: {fmeta['cols']}
@@ -200,6 +235,13 @@ AACT:
 - sample rows (≤100): {ameta['sample']}
 - SQL: {(state.get('aact_sql') or '')[:1200]}
 - error: {state.get('aact_error') or 'None'}
+
+PRICING:
+- rows: {pmeta['rows']}, cols: {pmeta['cols']}
+- columns (first 40): {pmeta['columns']}
+- sample rows (≤100): {pmeta['sample']}
+- SQL: {(state.get('pricing_sql') or '')[:1200]}
+- error: {state.get('pricing_error') or 'None'}
 
 Instructions:
 - DO NOT REPEAT THE RESULTS OF SQL QUERIES.
@@ -217,7 +259,7 @@ Instructions:
         if not want_chart:
             return {}
    
-        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+        llm = ChatOpenAI(model="gpt-4o", temperature=0)
 
         def meta(df: Optional[pd.DataFrame]):
             if isinstance(df, pd.DataFrame) and len(df) > 0:
@@ -229,17 +271,25 @@ Instructions:
                 }
             return {"rows": 0, "cols": 0, "columns": [], "dtypes": {}}
 
-        def choose_df(question: str, f_df: Optional[pd.DataFrame], a_df: Optional[pd.DataFrame]):
+        def choose_df(question: str, f_df: Optional[pd.DataFrame], a_df: Optional[pd.DataFrame],p_df: Optional[pd.DataFrame]):
             override = (state.get("plot_source") or "").lower()
             if override in {"faers", "aact"}:
-                return (f_df, "faers") if override == "faers" else (a_df, "aact")
+                if override == "faers":
+                    return (f_df, "faers") 
+                elif override == "aact": 
+                    return (a_df, "aact")
+                else:
+                    return (p_df,"pricing")
             q = (question or "").lower()
             f_len = len(f_df) if isinstance(f_df, pd.DataFrame) else 0
             a_len = len(a_df) if isinstance(a_df, pd.DataFrame) else 0
+            p_len = len(p_df) if isinstance(p_df, pd.DataFrame) else 0
             if state.get("need_aact"):
                 return (a_df, "aact")
             if state.get("need_faers"):
                 return (f_df, "faers")
+            if state.get("need_pricing"):
+                return (p_df, "pricing")
             return (None, "none")
 
         def run_safely(df, code: str):
@@ -268,13 +318,15 @@ Instructions:
         question = state.get("question") or ""
         f_df = state.get("faers_df")
         a_df = state.get("aact_df")
-        df_to_plot, source = choose_df(question, f_df, a_df)
-
+        p_df = state.get("pricing_df")
+        df_to_plot, source = choose_df(question, f_df, a_df,p_df)
+        #print(source)
         if not isinstance(df_to_plot, pd.DataFrame) or len(df_to_plot) == 0:
             return {"chart_error": "No data available for plotting from FAERS or AACT.", "chart_source": source}
 
         fmeta = meta(f_df)
         ameta = meta(a_df)
+        pmeta = meta(p_df)
         preview = df_to_plot.head(6).to_string(index=False)
 
         prompt = f"""
@@ -287,8 +339,8 @@ Instructions:
     - End with a variable named: fig
     - Use clear defaults: informative title, axis labels, and template='plotly_white'.
     - Time trend -> line/area; categorical comparison -> bar; distribution -> histogram/box/violin; heatmap for matrix-like comparisons.
-    - Use a stacked bar chart wherever possible
     - Use ONLY columns that exist in df.
+    - Use multi-line line charts over time for pricing db questions.
 
     User question:
     {question}
@@ -300,6 +352,7 @@ Instructions:
 
     FAERS columns: {fmeta['columns']}
     AACT columns : {ameta['columns']}
+    PRICING columns : {pmeta['columns']}
 
     Return ONLY Python code that uses df and px (and optionally go) and ends with:
     fig = <plotly figure>
@@ -310,6 +363,7 @@ Instructions:
             if "\n" in code and code.split("\n", 1)[0].lower().startswith("python"):
                 code = code.split("\n", 1)[1]
 
+        #print(code)
         try:
             fig = run_safely(df_to_plot, code)
             fig.update_layout(template="plotly_white")
