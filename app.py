@@ -68,7 +68,7 @@ def get_apps(safe_mode=True, default_limit=200, want_chart = True,want_summary =
     #Image(orch_app().get_graph().draw_mermaid_png())
     return orch_app
 
-st.title("FDAERS + Clinical Trials")
+st.title("Apperture Dashboard")
 
 
 with st.sidebar:
@@ -130,7 +130,7 @@ if st.button("Run", type="primary"):
             st.error(f"AACT error: {out['aact_error']}")
 
         st.divider()
-        
+
         st.subheader("Pricing")
         if isinstance(out.get("pricing_df"), pd.DataFrame):
             pdf = out["pricing_df"]
@@ -141,7 +141,7 @@ if st.button("Run", type="primary"):
         if out.get("pricing_sql"):
             with st.expander("Pricing SQL query"):
                 st.code(out["pricing_sql"], language="sql")
-        if out.get("Pricing_sql_explain"):
+        if out.get("pricing_sql_explain"):
             with st.expander("Pricing SQL Explained"):
                 st.text(out["pricing_sql_explain"])
         if out.get("pricing_error"):

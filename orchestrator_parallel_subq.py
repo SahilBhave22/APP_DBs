@@ -159,7 +159,7 @@ def build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app,want_chart,
             return {}
         subq = state.get("faers_subq") or state["question"]
         s_in = {"question": subq, "sql": None, "error": None, 
-                "attempts": 0, "summary": None, "df": None,"sq_explain":None}
+                "attempts": 0, "summary": None, "df": None,"sql_explain":None}
         out = faers_app.invoke(s_in)
         
         return {"faers_sql": out.get("sql"), "faers_df": out.get("df"), 
@@ -181,7 +181,7 @@ def build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app,want_chart,
             return {}
         subq = state.get("pricing_subq") or state["question"]
         s_in = {"question": subq, "sql": None, "error": None, 
-                "attempts": 0, "summary": None, "df": None,"sq_explain":None}
+                "attempts": 0, "summary": None, "df": None,"sql_explain":None}
         out = pricing_app.invoke(s_in)
         
         return {"pricing_sql": out.get("sql"), "pricing_df": out.get("df"), 
@@ -301,7 +301,7 @@ Instructions:
             ]
             low = code.lower()
             if any(b in low for b in banned):
-                print(low)
+                #print(low)
                 raise ValueError("Unsafe code detected in chart snippet.")
             import plotly.graph_objects as go  # allowed
             safe_globals = {
@@ -363,7 +363,7 @@ Instructions:
             if "\n" in code and code.split("\n", 1)[0].lower().startswith("python"):
                 code = code.split("\n", 1)[1]
 
-        print(code)
+        #print(code)
         try:
             fig = run_safely(df_to_plot, code)
             fig.update_layout(template="plotly_white")
