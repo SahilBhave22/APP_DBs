@@ -340,7 +340,7 @@ Instructions:
     - Use clear defaults: informative title, axis labels, and template='plotly_white'.
     - Time trend -> line/area; categorical comparison -> bar; distribution -> histogram/box/violin; heatmap for matrix-like comparisons.
     - Use ONLY columns that exist in df.
-    - Use multi-line line charts over time for pricing db questions.
+    - For PRICING related questions, use a STEP line (Plotly line_shape='hv') instead of slope lines.
 
     User question:
     {question}
