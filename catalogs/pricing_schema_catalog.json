@@ -57,6 +57,16 @@
             "name": "wac_unit_effective_date",
             "type": "datetime",
             "description": "date for update of wac unit price"
+          },
+          {
+            "name": "strength",
+            "type": "varchar",
+            "description": "drug strength"
+          },
+          {
+            "name": "dosage_form",
+            "type": "varchar",
+            "description": "dosage form"
           }
         
         ]
