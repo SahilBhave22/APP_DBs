@@ -3,21 +3,21 @@
   "description": "Pricing Schema Catalog",
   "tables": [
     {
-      "name": "pricing_calculations",
+      "name": "pricing_calculations_tablets",
       "description": "Pricing Data for brand names",
       "primary_key": [
         "ndc"
       ],
       "columns": [
         {
-          "name": "ndc",
-          "type": "varchar",
-          "description": "NDC Code for the brand name"
-        },
-        {
           "name": "brand_name",
           "type": "varchar",
           "description": "brand name of the drug"
+        },
+        {
+          "name": "disease",
+          "type": "varchar",
+          "description": "disease related to the drug dosing"
         },
         {
           "name": "wac_unit_effective_date",
