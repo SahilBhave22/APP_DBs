@@ -132,8 +132,8 @@ if st.button("Run", type="primary"):
         st.error("Please enter a question.")
         st.stop()
 
-    with get_engine(DB_NAME_FDAERS).connect() as conn:
-        st.write(conn.execute(sqlalchemy.text("SELECT * from demo limit 10;")).all())
+    # with get_engine(DB_NAME_FDAERS).connect() as conn:
+    #     st.write(conn.execute(sqlalchemy.text("SELECT * from demo limit 10;")).all())
 
     orch = get_apps(safe_mode=safe_mode, default_limit=int(default_limit), want_chart=want_chart,want_summary=want_summary)
     out = orch.invoke({"question": q})
