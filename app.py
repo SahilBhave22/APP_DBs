@@ -11,6 +11,19 @@ from orchestrator_parallel_subq import build_orchestrator_parallel_subq
 from IPython.display import Image
 import plotly.io as pio
 
+from functools import lru_cache
+
+from google.oauth2 import service_account
+from google.cloud.sql.connector import Connector, IPTypes
+import sqlalchemy
+
+# INSTANCE = st.secrets["gcp"]["instance_connection_name"]
+# DB_USER  = st.secrets["gcp"]["db_user"]
+# DB_PASS  = st.secrets["gcp"]["db_pass"]
+
+# DB_NAME_AACT    = st.secrets["gcp"]["db_name_aact"]
+# DB_NAME_FDAERS  = st.secrets["gcp"]["db_name_fdaers"]
+# DB_NAME_PRICING = st.secrets["gcp"]["db_name_pricing"]
 
 st.set_page_config(page_title="FDAERS + Clinical Trials ", layout="wide")
 
@@ -21,19 +34,48 @@ OPENAI_KEY     = st.secrets.get("openai_api_key")
 
 
 PUBLIC_IP = st.secrets.get("public_ip")  # Cloud SQL public IP
-DB_USER   = st.secrets.get("db_user")
-DB_PASS   = st.secrets.get("db_pass")
-DB_NAME_AACT   = st.secrets.get("db_name_aact")
-DB_NAME_FDAERS = st.secrets.get("db_name_fdaers")
-DB_NAME_PRICING = st.secrets.get("db_name_pricing")
+DB_USER1   = st.secrets.get("db_user")
+DB_PASS1   = st.secrets.get("db_pass")
+DB_NAME_AACT1   = st.secrets.get("db_name_aact")
+DB_NAME_FDAERS1= st.secrets.get("db_name_fdaers")
+DB_NAME_PRICING1 = st.secrets.get("db_name_pricing")
 
-FAERS_DB_URL =  f"postgresql://{DB_USER}:{DB_PASS}@{PUBLIC_IP}:5432/{DB_NAME_FDAERS}?sslmode=require&connect_timeout=70"
-AACT_DB_URL = f"postgresql://{DB_USER}:{DB_PASS}@{PUBLIC_IP}:5432/{DB_NAME_AACT}?sslmode=require&connect_timeout=70"
-PRICING_DB_URL = f"postgresql://{DB_USER}:{DB_PASS}@{PUBLIC_IP}:5432/{DB_NAME_PRICING}?sslmode=require&connect_timeout=70"
+FAERS_DB_URL =  f"postgresql://{DB_USER1}:{DB_PASS1}@{PUBLIC_IP}:5432/{DB_NAME_FDAERS1}?sslmode=require&connect_timeout=70"
+AACT_DB_URL = f"postgresql://{DB_USER1}:{DB_PASS1}@{PUBLIC_IP}:5432/{DB_NAME_AACT1}?sslmode=require&connect_timeout=70"
+PRICING_DB_URL = f"postgresql://{DB_USER1}:{DB_PASS1}@{PUBLIC_IP}:5432/{DB_NAME_PRICING1}?sslmode=require&connect_timeout=70"
 
+# creds_info = dict(st.secrets["gcp"]["service_account"])
+# credentials = service_account.Credentials.from_service_account_info(creds_info)
+# # Create ONE connector instance and reuse it
+# _connector = Connector(credentials=credentials)
 
-#FAERS_DB_URL   = st.secrets.get("faers_db_url")
-#AACT_DB_URL    = st.secrets.get("aact_db_url")
+# def _getconn(db_name: str):
+#     """
+#     Creator function passed to SQLAlchemy to open a secure, ephemeral
+#     tunnelled connection to Cloud SQL via public IP (no IP allowlist needed).
+#     """
+#     return _connector.connect(
+#         INSTANCE,
+#         driver="pg8000",      # PostgreSQL driver
+#         user=DB_USER,
+#         password=DB_PASS,     # regular password auth (no IAM)
+#         db=db_name,
+#         ip_type=IPTypes.PUBLIC
+#     )
+
+# @lru_cache(maxsize=8)
+# def get_engine(db_name: str) -> sqlalchemy.Engine:
+#     """
+#     Cache a SQLAlchemy engine per DB name.
+#     Using creator=... makes SQLAlchemy use our connector for connections.
+#     """
+#     return sqlalchemy.create_engine(
+#         "postgresql+pg8000://",
+#         creator=lambda: _getconn(db_name),
+#         pool_pre_ping=True,
+#         pool_size=5,
+#         max_overflow=2,
+#     )
 
 for k in ("LANGCHAIN_TRACING","LANGCHAIN_ENDPOINT","LANGCHAIN_API_KEY","LANGCHAIN_PROJECT"):
     if k in st.secrets:
@@ -89,6 +131,9 @@ if st.button("Run", type="primary"):
     if not q.strip():
         st.error("Please enter a question.")
         st.stop()
+
+    with get_engine(DB_NAME_FDAERS).connect() as conn:
+        st.write(conn.execute(sqlalchemy.text("SELECT * from demo limit 10;")).all())
 
     orch = get_apps(safe_mode=safe_mode, default_limit=int(default_limit), want_chart=want_chart,want_summary=want_summary)
     out = orch.invoke({"question": q})

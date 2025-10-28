@@ -176,7 +176,7 @@ def build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app,want_chart,
                 "aact_error": out.get("error"), "aact_sql_explain":out.get("sql_explain")}
     
     @traceable(name="PRICING Agent")
-    def call_faers(state: OrchestratorState) -> OrchestratorState:
+    def call_pricing(state: OrchestratorState) -> OrchestratorState:
         if not state.get("need_pricing"):
             return {}
         subq = state.get("pricing_subq") or state["question"]
@@ -383,6 +383,7 @@ Instructions:
     graph.add_node("router", router_node)
     graph.add_node("faers", call_faers)
     graph.add_node("aact", call_aact)
+    graph.add_node("pricing", call_pricing)
     graph.add_node("gather", gather_node)
     graph.add_node("summarize", summarize_node)
     graph.add_node("plot",plot_node)
@@ -391,10 +392,12 @@ Instructions:
     # Fan-out: run both agents concurrently; each checks its own flag
     graph.add_edge("router", "faers")
     graph.add_edge("router", "aact")
+    graph.add_edge("router", "pricing")
 
     # Join
     graph.add_edge("faers", "gather")
     graph.add_edge("aact", "gather")
+    graph.add_edge("pricing", "gather")
 
     # Summarize
     graph.add_edge("gather", "summarize")
