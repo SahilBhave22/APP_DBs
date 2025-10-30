@@ -16,70 +16,21 @@ from functools import lru_cache
 from google.oauth2 import service_account
 from google.cloud.sql.connector import Connector, IPTypes
 import sqlalchemy
+import uuid
+from utils.helpers import split_payload_to_df
 
-# INSTANCE = st.secrets["gcp"]["instance_connection_name"]
-# DB_USER  = st.secrets["gcp"]["db_user"]
-# DB_PASS  = st.secrets["gcp"]["db_pass"]
-
-# DB_NAME_AACT    = st.secrets["gcp"]["db_name_aact"]
-# DB_NAME_FDAERS  = st.secrets["gcp"]["db_name_fdaers"]
-# DB_NAME_PRICING = st.secrets["gcp"]["db_name_pricing"]
+if "thread_id" not in st.session_state:
+    st.session_state.thread_id = str(uuid.uuid4())
+if "messages" not in st.session_state:
+    st.session_state.messages = [] 
 
 st.set_page_config(page_title="FDAERS + Clinical Trials ", layout="wide")
 
 OPENAI_KEY     = st.secrets.get("openai_api_key")
 
-#DB_PASSWORD = st.secrets.get("db_password") 
-#password = quote_plus(DB_PASSWORD)
-
-
-PUBLIC_IP = st.secrets.get("public_ip")  # Cloud SQL public IP
-DB_USER1   = st.secrets.get("db_user")
-DB_PASS1   = st.secrets.get("db_pass")
-DB_NAME_AACT1   = st.secrets.get("db_name_aact")
-DB_NAME_FDAERS1= st.secrets.get("db_name_fdaers")
-DB_NAME_PRICING1 = st.secrets.get("db_name_pricing")
-
-FAERS_DB_URL =  f"postgresql://{DB_USER1}:{DB_PASS1}@{PUBLIC_IP}:5432/{DB_NAME_FDAERS1}?sslmode=require&connect_timeout=70"
-AACT_DB_URL = f"postgresql://{DB_USER1}:{DB_PASS1}@{PUBLIC_IP}:5432/{DB_NAME_AACT1}?sslmode=require&connect_timeout=70"
-PRICING_DB_URL = f"postgresql://{DB_USER1}:{DB_PASS1}@{PUBLIC_IP}:5432/{DB_NAME_PRICING1}?sslmode=require&connect_timeout=70"
-
-# creds_info = dict(st.secrets["gcp"]["service_account"])
-# credentials = service_account.Credentials.from_service_account_info(creds_info)
-# # Create ONE connector instance and reuse it
-# _connector = Connector(credentials=credentials)
-
-# def _getconn(db_name: str):
-#     """
-#     Creator function passed to SQLAlchemy to open a secure, ephemeral
-#     tunnelled connection to Cloud SQL via public IP (no IP allowlist needed).
-#     """
-#     return _connector.connect(
-#         INSTANCE,
-#         driver="pg8000",      # PostgreSQL driver
-#         user=DB_USER,
-#         password=DB_PASS,     # regular password auth (no IAM)
-#         db=db_name,
-#         ip_type=IPTypes.PUBLIC
-#     )
-
-# @lru_cache(maxsize=8)
-# def get_engine(db_name: str) -> sqlalchemy.Engine:
-#     """
-#     Cache a SQLAlchemy engine per DB name.
-#     Using creator=... makes SQLAlchemy use our connector for connections.
-#     """
-#     return sqlalchemy.create_engine(
-#         "postgresql+pg8000://",
-#         creator=lambda: _getconn(db_name),
-#         pool_pre_ping=True,
-#         pool_size=5,
-#         max_overflow=2,
-#     )
-
 for k in ("LANGCHAIN_TRACING","LANGCHAIN_ENDPOINT","LANGCHAIN_API_KEY","LANGCHAIN_PROJECT"):
-    if k in st.secrets:
-        os.environ[k] = st.secrets[k]
+    if k in st.secrets['langchain_creds']:
+        os.environ[k] = st.secrets['langchain_creds'][k]
 
 if OPENAI_KEY:
     os.environ["OPENAI_API_KEY"] = OPENAI_KEY
@@ -93,21 +44,18 @@ def load_json(key: str, fallback: str):
         return json.load(f)
 
 @st.cache_resource
-def get_apps(safe_mode=True, default_limit=200, want_chart = True,want_summary = True):
-    if not FAERS_DB_URL or not AACT_DB_URL:
-        st.error("Missing FAERS_DB_URL or AACT_DB_URL in secrets.")
-        st.stop()
+def get_apps():
 
     faers_catalog = load_json("faers_schema_catalog", "faers_schema_catalog.json")
     aact_catalog  = load_json("clinicaltrials_schema_catalog",  "aact_schema_catalog.json")
     pricing_catalog  = load_json("pricing_schema_catalog",  "pricing_schema_catalog.json")
     aact_sample_queries = load_json("clinicaltrials_sample_queries",  "clinicaltrials_sample_queries.json")
 
-    faers_app = build_fdaers_agent(faers_catalog, fdaers_db_url=FAERS_DB_URL, safe_mode=safe_mode, default_limit=default_limit)
-    aact_app  = build_clinicaltrials_agent(aact_catalog,  aact_sample_queries,  clinicaltrials_db_url=AACT_DB_URL,  safe_mode=safe_mode, default_limit=default_limit)
-    pricing_app  = build_pricing_agent(pricing_catalog,  pricing_db_url=PRICING_DB_URL,  safe_mode=safe_mode, default_limit=default_limit)
-    orch_app  = build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app,want_chart,want_summary)
-    #Image(orch_app().get_graph().draw_mermaid_png())
+    faers_app = build_fdaers_agent(faers_catalog)
+    aact_app  = build_clinicaltrials_agent(aact_catalog,  aact_sample_queries)
+    pricing_app  = build_pricing_agent(pricing_catalog,  safe_mode=safe_mode)
+    orch_app  = build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app)
+    
     return orch_app
 
 st.title("Apperture Dashboard")
@@ -132,17 +80,34 @@ if st.button("Run", type="primary"):
         st.error("Please enter a question.")
         st.stop()
 
-    # with get_engine(DB_NAME_FDAERS).connect() as conn:
-    #     st.write(conn.execute(sqlalchemy.text("SELECT * from demo limit 10;")).all())
+    st.session_state.messages.append(("user", q))
 
-    orch = get_apps(safe_mode=safe_mode, default_limit=int(default_limit), want_chart=want_chart,want_summary=want_summary)
-    out = orch.invoke({"question": q})
+    orch = get_apps()
+    cfg = {"configurable": {"thread_id": st.session_state.thread_id}}
 
+    with st.spinner("Thinking..."):
+        out = orch.invoke({"question": q,
+                            "want_chart": want_chart,
+                            "want_summary": want_summary,
+                            "default_limit": int(default_limit),
+                            "chat_history": st.session_state.messages[-5:]
+                        }, config=cfg)
+        st.session_state.current_result = out    
+
+out = st.session_state.get("current_result")
+if out:
     # Sidebar results per source
     with st.sidebar:
+        if st.button("Reset chat"):
+            st.session_state.thread_id = str(uuid.uuid4())
+            st.session_state.messages = []
+            if "current_result" in st.session_state:
+                del st.session_state.current_result
+            st.rerun()
+        
         st.subheader("FDAERS")
-        if isinstance(out.get("faers_df"), pd.DataFrame):
-            fdf = out["faers_df"]
+        if out.get("faers_df"):
+            fdf = split_payload_to_df(out["faers_df"])
             with st.expander("FDAERS data"):
                 st.caption(f"{len(fdf):,} rows · {fdf.shape[1]} cols")
                 st.dataframe(fdf.head(default_limit), use_container_width=True, hide_index=True)
@@ -159,8 +124,8 @@ if st.button("Run", type="primary"):
         st.divider()
 
         st.subheader("Clinical Trials")
-        if isinstance(out.get("aact_df"), pd.DataFrame):
-            adf = out["aact_df"]
+        if out.get("aact_df"):
+            adf = split_payload_to_df(out["aact_df"])
             with st.expander("Clinical Trials data"):
                 st.caption(f"{len(adf):,} rows · {adf.shape[1]} cols")
                 st.dataframe(adf.head(default_limit), use_container_width=True, hide_index=True)
@@ -177,8 +142,8 @@ if st.button("Run", type="primary"):
         st.divider()
 
         st.subheader("Pricing")
-        if isinstance(out.get("pricing_df"), pd.DataFrame):
-            pdf = out["pricing_df"]
+        if out.get("pricing_df"):
+            pdf = split_payload_to_df(out["pricing_df"])
             with st.expander("Pricing data"):
                 st.caption(f"{len(pdf):,} rows · {pdf.shape[1]} cols")
                 st.dataframe(pdf.head(default_limit), use_container_width=True, hide_index=True)

@@ -13,6 +13,10 @@ from langchain.schema import SystemMessage, HumanMessage
 from langgraph.graph import StateGraph, END
 import sqlglot
 
+from langgraph.checkpoint.memory import MemorySaver
+from utils.db_conn import exec_sql
+from utils.helpers import df_to_split_payload
+
 
 # ----------------------------
 # Helpers & validation
@@ -69,21 +73,9 @@ class AgentState(TypedDict):
     error: Optional[str]
     attempts: int
     summary: Optional[str]
-    df: Optional[pd.DataFrame]
+    df: Optional[Dict[str, Any]]
     sql_explain : Optional[str]
 
-
-# ----------------------------
-# DB helpers
-# ----------------------------
-@lru_cache(maxsize=4)
-def get_engine_cached(fdaers_db_url: str):
-    return create_engine(fdaers_db_url, pool_pre_ping=True)
-
-def exec_sql(fdaers_db_url: str, sql: str) -> pd.DataFrame:
-    eng = get_engine_cached(fdaers_db_url)
-    with eng.connect() as conn:
-        return pd.read_sql(text(sql), conn)
 
 
 # ----------------------------
@@ -92,7 +84,6 @@ def exec_sql(fdaers_db_url: str, sql: str) -> pd.DataFrame:
 def build_fdaers_agent(
     catalog: Dict[str, Any],
     *,
-    fdaers_db_url: Optional[str] = None,
     safe_mode: bool = True,
     default_limit: int = 200,
 ):
@@ -101,12 +92,6 @@ def build_fdaers_agent(
       draft_sql -> validate_sql -> (revise_sql)* -> run_sql -> done
     Returns a LangGraph app; final state has keys: sql, df, error.
     """
-    # Resolve DB URL for execution
-    if not fdaers_db_url:
-        FDAERS_fdaers_db_url = os.getenv("fdaers_db_url") 
-    if not fdaers_db_url:
-        raise ValueError("No database URL provided. Pass fdaers_db_url=... or set FAERS_fdaers_db_url / fdaers_db_url.")
-
     column_inventory = make_column_inventory(catalog)
     join_hints = make_join_hints(catalog)
 
@@ -223,7 +208,7 @@ Validator feedback:
                 return state
 
         try:
-            state["df"] = exec_sql(fdaers_db_url, sql)
+            state["df"] = df_to_split_payload(exec_sql(sql,db_key="fdaers"))
         except Exception as e:
             state["error"] = str(e)
         return state
@@ -275,6 +260,5 @@ Validator feedback:
     graph.add_edge("explain_sql", "done")
 
     graph.add_edge("done", END)
-
-    app = graph.compile()
+    app = graph.compile(checkpointer=MemorySaver())
     return app

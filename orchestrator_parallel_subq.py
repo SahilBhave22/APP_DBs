@@ -13,14 +13,16 @@ from langsmith.run_helpers import traceable
 import plotly.express as px
 import plotly.io as pio
 import types
-
+from langgraph.checkpoint.memory import MemorySaver
 
 from IPython.display import Image
 import re
-
+from utils.helpers import split_payload_to_df
 # ---------- Orchestrator state ----------
 class OrchestratorState(TypedDict, total=False):
     question: str
+    want_summary:bool
+    want_chart : bool
 
     # Router outputs (fan-out flags + sub-questions)
     need_faers: bool
@@ -34,17 +36,17 @@ class OrchestratorState(TypedDict, total=False):
 
     # FAERS artifacts
     faers_sql: Optional[str]
-    faers_df: Optional[pd.DataFrame]
+    faers_df: Optional[Dict[str, Any]] 
     faers_error: Optional[str]
 
     # AACT artifacts
     aact_sql: Optional[str]
-    aact_df: Optional[pd.DataFrame]
+    aact_df: Optional[Dict[str, Any]] 
     aact_error: Optional[str]
 
     # PRICING artifacts
     pricing_sql: Optional[str]
-    pricing_df: Optional[pd.DataFrame]
+    pricing_df: Optional[Dict[str, Any]] 
     pricing_error: Optional[str]
 
     figure_json: str
@@ -117,7 +119,7 @@ Return JSON ONLY NO TRAILING CHARACTERS:
   "need_pricing": <bool>,
   "router_rationale": "<string>",
   "faers_subq": "<string or null>",
-  "aact_subq": "<string or null>"
+  "aact_subq": "<string or null>",
   "pricing_subq": "<string or null>"
 }}
 """
@@ -142,47 +144,51 @@ Return JSON ONLY NO TRAILING CHARACTERS:
         "need_aact": bool(data.get("need_aact", False)),
         "need_pricing": bool(data.get("need_pricing", False)),
         "router_rationale": data.get("router_rationale", ""),
-        "faers_subq": data.get("faers_subq"),
-        "aact_subq": data.get("aact_subq"),
-        "pricing_subq": data.get("pricing_subq"),
+        "faers_subq": state.get('faers_subq') or data.get("faers_subq"),
+        "aact_subq": state.get('aact_subq') or data.get("aact_subq"),
+        "pricing_subq": state.get('aact_subq') or data.get("pricing_subq"),
     }
 
 # ---------- Orchestrator builder (wire in your compiled agent apps) ----------
-def build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app,want_chart,want_summary):
+def build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app):
     """
     faers_app / aact_app are your compiled LangGraph agent apps from build_agent(...),
     which take {"question", "sql", "error", "attempts", "summary", "df"} and return with df/sql/error filled.
     """
+    
     @traceable(name="FAERS Agent")
-    def call_faers(state: OrchestratorState) -> OrchestratorState:
+    def call_faers(state: OrchestratorState,config) -> OrchestratorState:
         if not state.get("need_faers"):
             return {}
+        
         subq = state.get("faers_subq") or state["question"]
         s_in = {"question": subq, "sql": None, "error": None, 
                 "attempts": 0, "summary": None, "df": None,"sql_explain":None}
-        out = faers_app.invoke(s_in)
+        out = faers_app.invoke(s_in,config = config)
         
         return {"faers_sql": out.get("sql"), "faers_df": out.get("df"), 
                 "faers_error": out.get("error"), "faers_sql_explain":out.get("sql_explain")}
 
     @traceable(name="AACT Agent")
-    def call_aact(state: OrchestratorState) -> OrchestratorState:
+    def call_aact(state: OrchestratorState,config) -> OrchestratorState:
         if not state.get("need_aact"):
             return {}
+        
         subq = state.get("aact_subq") or state["question"]
         s_in = {"question": subq, "sql": None, "error": None, "attempts": 0, "summary": None, "df": None}
-        out = aact_app.invoke(s_in)
+        out = aact_app.invoke(s_in,config = config)
         return {"aact_sql": out.get("sql"), "aact_df": out.get("df"), 
                 "aact_error": out.get("error"), "aact_sql_explain":out.get("sql_explain")}
     
     @traceable(name="PRICING Agent")
-    def call_pricing(state: OrchestratorState) -> OrchestratorState:
+    def call_pricing(state: OrchestratorState,config) -> OrchestratorState:
         if not state.get("need_pricing"):
             return {}
+        
         subq = state.get("pricing_subq") or state["question"]
         s_in = {"question": subq, "sql": None, "error": None, 
                 "attempts": 0, "summary": None, "df": None,"sql_explain":None}
-        out = pricing_app.invoke(s_in)
+        out = pricing_app.invoke(s_in,config = config)
         
         return {"pricing_sql": out.get("sql"), "pricing_df": out.get("df"), 
                 "pricing_error": out.get("error"), "pricing_sql_explain":out.get("sql_explain")}
@@ -193,6 +199,7 @@ def build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app,want_chart,
         return {}
 
     def summarize_node(state: OrchestratorState) -> OrchestratorState:
+        want_summary = state.get('want_summary')
         if not want_summary:
             return {}
         llm = ChatOpenAI(model="gpt-4o", temperature=0)
@@ -207,17 +214,19 @@ def build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app,want_chart,
                 }
             return {"rows": 0, "cols": 0, "columns": [], "sample": []}
 
-        fmeta = meta(state.get("faers_df"))
-        ameta = meta(state.get("aact_df"))
-        pmeta = meta(state.get("pricing_df"))
+        fmeta = meta(split_payload_to_df(state.get("faers_df")))
+        ameta = meta(split_payload_to_df(state.get("aact_df")))
+        pmeta = meta(split_payload_to_df(state.get("pricing_df")))
+
+        hist = state.get("chat_history", [])[-8:]  # last few turns
+        hist_str = "\n".join(f"{r.upper()}: {c}" for r, c in hist) if hist else "None"
         prompt = f"""
 Write a concise, decision-ready report using the available sources.
 
-Main question:
-{state['question']}
+Recent questions:
+{hist_str}
 
 Router:
-- Rationale: {state.get('router_rationale')}
 - FAERS sub-question: {state.get('faers_subq') or '—'}
 - AACT  sub-question: {state.get('aact_subq') or '—'}
 - PRICING  sub-question: {state.get('pricing_subq') or '—'}
@@ -255,7 +264,7 @@ Instructions:
         return {"final_answer": ans}
 
     def plot_node(state: OrchestratorState) -> OrchestratorState:
-
+        want_chart = state.get('want_chart')
         if not want_chart:
             return {}
    
@@ -316,9 +325,9 @@ Instructions:
             return fig
 
         question = state.get("question") or ""
-        f_df = state.get("faers_df")
-        a_df = state.get("aact_df")
-        p_df = state.get("pricing_df")
+        f_df = split_payload_to_df(state.get("faers_df"))
+        a_df = split_payload_to_df(state.get("aact_df"))
+        p_df = split_payload_to_df(state.get("pricing_df"))
         df_to_plot, source = choose_df(question, f_df, a_df,p_df)
         #print(source)
         if not isinstance(df_to_plot, pd.DataFrame) or len(df_to_plot) == 0:
@@ -403,9 +412,8 @@ Instructions:
     graph.add_edge("gather", "summarize")
     graph.add_edge("summarize","plot")
     graph.add_edge("plot", END)
+    graph_final = graph.compile(checkpointer=MemorySaver())
     
-    graph_final = graph.compile()
-    #Image(graph_final().get_graph().draw_mermaid_png())
 
 
     return graph_final

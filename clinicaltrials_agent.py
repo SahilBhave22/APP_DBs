@@ -6,16 +6,16 @@ from functools import lru_cache
 from typing import TypedDict, Optional, Dict, Any, Literal
 
 import pandas as pd
-from sqlalchemy import create_engine, text
 
 from langchain_openai import ChatOpenAI
 from langchain.schema import SystemMessage, HumanMessage
 from langgraph.graph import StateGraph, END
 import sqlglot
 
-#from google.cloud.sql.connector import Connector, IPTypes
+from utils.db_conn import exec_sql
+from utils.helpers import df_to_split_payload
 
-
+from langgraph.checkpoint.memory import MemorySaver
 # ----------------------------
 # Helpers & validation
 # ----------------------------
@@ -72,7 +72,7 @@ class AgentState(TypedDict):
     error: Optional[str]
     attempts: int
     summary: Optional[str]
-    df: Optional[pd.DataFrame]
+    df:  Optional[Dict[str, Any]]
     sql_explain : Optional[str]
 
 
@@ -92,16 +92,16 @@ class AgentState(TypedDict):
 #         timeout=60,
 #     )
 
-@lru_cache(maxsize=4)
-def get_engine_cached(clinicaltrials_db_url: str):
-    # return create_engine("postgresql+pg8000://", creator=getconn,
-    #                    pool_pre_ping=True, pool_recycle=1800, pool_timeout=60)
-    return create_engine(clinicaltrials_db_url, pool_pre_ping=True)
+# @lru_cache(maxsize=4)
+# def get_engine_cached(clinicaltrials_db_url: str):
+#     # return create_engine("postgresql+pg8000://", creator=getconn,
+#     #                    pool_pre_ping=True, pool_recycle=1800, pool_timeout=60)
+#     return create_engine(clinicaltrials_db_url, pool_pre_ping=True)
 
-def exec_sql(clinicaltrials_db_url: str, sql: str) -> pd.DataFrame:
-    eng = get_engine_cached(clinicaltrials_db_url)
-    with eng.connect() as conn:
-        return pd.read_sql(text(sql), conn)
+# def exec_sql(clinicaltrials_db_url: str, sql: str) -> pd.DataFrame:
+#     eng = get_engine_cached(clinicaltrials_db_url)
+#     with eng.connect() as conn:
+#         return pd.read_sql(text(sql), conn)
 
 
 
@@ -112,7 +112,6 @@ def build_clinicaltrials_agent(
     catalog: Dict[str, Any],
     sample_queries :Dict[str, Any],
     *,
-    clinicaltrials_db_url: Optional[str] = None,
     safe_mode: bool = True,
     default_limit: int = 200,
 ):
@@ -121,12 +120,7 @@ def build_clinicaltrials_agent(
       draft_sql -> validate_sql -> (revise_sql)* -> run_sql -> done
     Returns a LangGraph app; final state has keys: sql, df, error.
     """
-    # Resolve DB URL for execution
-    if not clinicaltrials_db_url:
-        clinicaltrials_db_url = os.getenv("CT_clinicaltrials_db_url") or os.getenv("clinicaltrials_db_url")
-    if not clinicaltrials_db_url:
-        raise ValueError("No database URL provided. Pass clinicaltrials_db_url=... or set FAERS_clinicaltrials_db_url / clinicaltrials_db_url.")
-
+    
     column_inventory = make_column_inventory(catalog)
     join_hints = make_join_hints(catalog)
 
@@ -260,7 +254,7 @@ Validator feedback:
                 return state
 
         try:
-            state["df"] = exec_sql(clinicaltrials_db_url, sql)
+            state["df"] = df_to_split_payload(exec_sql(sql,db_key='aact'))
             state["error"] = None
         except Exception as e:
             state["error"] = str(e)
@@ -278,7 +272,7 @@ Validator feedback:
                           schema_catalog = json.dumps(catalog)))
         ]
         explain = llm_mini.invoke(msgs).content.strip()
-        print(explain)
+        
         state["sql_explain"] = explain
         return state
 
@@ -314,5 +308,5 @@ Validator feedback:
     graph.add_edge("explain_sql", "done")
     graph.add_edge("done", END)
 
-    app = graph.compile()
+    app = graph.compile(checkpointer=MemorySaver())
     return app
