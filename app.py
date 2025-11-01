@@ -24,7 +24,18 @@ if "thread_id" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = [] 
 
+if "last_want_summary" not in st.session_state:
+    st.session_state.last_want_summary = True
+if "summary_refresh" not in st.session_state:
+    st.session_state.summary_refresh = False
+
+if "last_want_chart" not in st.session_state:
+    st.session_state.last_want_chart = True
+if "chart_refresh" not in st.session_state:
+    st.session_state.chart_refresh = False
+
 st.set_page_config(page_title="FDAERS + Clinical Trials ", layout="wide")
+
 
 OPENAI_KEY     = st.secrets.get("openai_api_key")
 
@@ -74,6 +85,34 @@ q = st.text_area(
     placeholder="Example: Compare top 10 conditions across fdaers and clinical trials for Bavencio",
     height=140,
 )
+orch = get_apps()
+cfg = {"configurable": {"thread_id": st.session_state.thread_id}}
+
+if want_summary != st.session_state.last_want_summary:
+    st.session_state.last_want_summary = want_summary
+    if want_summary and q.strip() and st.session_state.summary_refresh:
+        with st.spinner("Generating summary...."):
+            out = orch.invoke({"question": q,
+                                "want_chart": want_chart,
+                                "want_summary": want_summary,
+                                "default_limit": int(default_limit),
+                                "chat_history": st.session_state.messages[-5:],
+                                "call_source":"summary_toggle"
+                            }, config=cfg)
+            st.session_state.current_result = out
+        
+if want_chart != st.session_state.last_want_chart:
+    st.session_state.last_want_chart = want_chart
+    if want_chart and q.strip() and st.session_state.chart_refresh:
+        with st.spinner("Generating chart...."):
+            out = orch.invoke({"question": q,
+                                "want_chart": want_chart,
+                                "want_summary": want_summary,
+                                "default_limit": int(default_limit),
+                                "chat_history": st.session_state.messages[-5:],
+                                "call_source":"chart_toggle"
+                            }, config=cfg)
+            st.session_state.current_result = out
 
 if st.button("Run", type="primary"):
     if not q.strip():
@@ -82,17 +121,19 @@ if st.button("Run", type="primary"):
 
     st.session_state.messages.append(("user", q))
 
-    orch = get_apps()
-    cfg = {"configurable": {"thread_id": st.session_state.thread_id}}
+    
 
-    with st.spinner("Thinking..."):
+    with st.spinner("Getting data...."):
         out = orch.invoke({"question": q,
                             "want_chart": want_chart,
                             "want_summary": want_summary,
                             "default_limit": int(default_limit),
-                            "chat_history": st.session_state.messages[-5:]
+                            "chat_history": st.session_state.messages[-5:],
+                            "call_source":"database"
                         }, config=cfg)
-        st.session_state.current_result = out    
+        st.session_state.current_result = out
+        st.session_state.summary_refresh = True    
+        st.session_state.chart_refresh = True
 
 out = st.session_state.get("current_result")
 if out:
@@ -159,16 +200,38 @@ if out:
 
     # Main pane: router rationale + summary
     st.caption(out.get("router_rationale") or "No router rationale")
-    st.subheader("Summary report")
-    # with st.expander("Show orchestrator diagram", expanded=False):
-    #     st.image(orch.get_graph().draw_mermaid_png()) 
-    st.markdown(out.get("final_answer") or "_No summary produced_")
 
-    st.subheader("Data Chart")
-    if out.get("figure_json"):
-        fig = pio.from_json(out["figure_json"])
-        st.plotly_chart(fig, use_container_width=True)
-    elif out.get("chart_error"):
-        st.info(out["chart_error"])
-    else:
-        st.markdown("_No Chart Produced_")
+    if want_summary:
+        st.subheader("Summary report") 
+        st.markdown(out.get("final_answer") or "_No summary produced_")
+        st.session_state.summary_refresh = False
+
+    if want_chart:
+        st.session_state.chart_refresh = False
+        st.subheader("Data Chart")
+        ftab, atab,ptab = st.tabs(["FAERS", "Clinical Trials","Pricing"])
+        with ftab:
+            if out.get("faers_figure_json"):
+                fig = pio.from_json(out["faers_figure_json"])
+                st.plotly_chart(fig, use_container_width=True)
+            elif out.get("faers_chart_error"):
+                st.info(out["chart_error"])
+            else:
+                st.markdown("_No Chart Produced_")
+        with atab:
+            if out.get("aact_figure_json"):
+                fig = pio.from_json(out["aact_figure_json"])
+                st.plotly_chart(fig, use_container_width=True)
+            elif out.get("aact_chart_error"):
+                st.info(out["aact_chart_error"])
+            else:
+                st.markdown("_No Chart Produced_")
+        with ptab:
+            if out.get("pricing_figure_json"):
+                fig = pio.from_json(out["pricing_figure_json"])
+                st.plotly_chart(fig, use_container_width=True)
+            elif out.get("pricing_chart_error"):
+                st.info(out["chart_error"])
+            else:
+                st.markdown("_No Chart Produced_")
+

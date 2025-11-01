@@ -23,7 +23,7 @@ class OrchestratorState(TypedDict, total=False):
     question: str
     want_summary:bool
     want_chart : bool
-
+    call_source: Optional[str]
     # Router outputs (fan-out flags + sub-questions)
     need_faers: bool
     need_aact: bool
@@ -49,7 +49,13 @@ class OrchestratorState(TypedDict, total=False):
     pricing_df: Optional[Dict[str, Any]] 
     pricing_error: Optional[str]
 
-    figure_json: str
+    faers_figure_json: Optional[str]
+    aact_figure_json: Optional[str]
+    pricing_figure_json: Optional[str]
+
+    faers_chart_error : Optional[str]
+    aact_chart_error : Optional[str]
+    pricing_chart_error : Optional[str]
     chart_source: str
 
     faers_sql_explain : Optional[str]
@@ -86,6 +92,7 @@ def default_signals() -> Signals:
     )
 
 def router_node(state: OrchestratorState) -> OrchestratorState:
+
     llm = ChatOpenAI(model="gpt-4o", temperature=0)
     sig = default_signals()
 
@@ -139,14 +146,15 @@ Return JSON ONLY NO TRAILING CHARACTERS:
             "pricing_subq": None
         }
 
+    
     return {
         "need_faers": bool(data.get("need_faers", False)),
         "need_aact": bool(data.get("need_aact", False)),
         "need_pricing": bool(data.get("need_pricing", False)),
         "router_rationale": data.get("router_rationale", ""),
-        "faers_subq": state.get('faers_subq') or data.get("faers_subq"),
-        "aact_subq": state.get('aact_subq') or data.get("aact_subq"),
-        "pricing_subq": state.get('aact_subq') or data.get("pricing_subq"),
+        "faers_subq": data.get("faers_subq") if data.get("faers_subq") is not None else state.get('faers_subq'),
+        "aact_subq": data.get("aact_subq") if data.get("aact_subq") is not None else state.get('aact_subq'),
+        "pricing_subq": data.get("pricing_subq") if data.get("pricing_subq") is not None else state.get('pricing_subq'),
     }
 
 # ---------- Orchestrator builder (wire in your compiled agent apps) ----------
@@ -158,39 +166,67 @@ def build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app):
     
     @traceable(name="FAERS Agent")
     def call_faers(state: OrchestratorState,config) -> OrchestratorState:
-        if not state.get("need_faers"):
+        if not state.get("need_faers") or state.get("call_source")=="summary_toggle":
             return {}
         
         subq = state.get("faers_subq") or state["question"]
-        s_in = {"question": subq, "sql": None, "error": None, 
-                "attempts": 0, "summary": None, "df": None,"sql_explain":None}
+        want_chart = state.get("want_chart")
+
+        if state.get("call_source") == "chart_toggle":
+            s_in = {"question": subq, "df":state.get("faers_df"),
+                    "want_chart":want_chart,"call_source":state.get("call_source")}
+            
+            out = faers_app.invoke(s_in,config = config)
+            return {"faers_figure_json":out.get("figure_json")}
+    
+        s_in = {"question": subq, "sql": None, "error": None, "want_chart" : want_chart,
+                "attempts": 0, "summary": None, "df": None,"sql_explain":None,"call_source":state.get("call_source")}
         out = faers_app.invoke(s_in,config = config)
-        
-        return {"faers_sql": out.get("sql"), "faers_df": out.get("df"), 
+            
+        return {"faers_sql": out.get("sql"), "faers_df": out.get("df"), "faers_figure_json":out.get("figure_json"),
                 "faers_error": out.get("error"), "faers_sql_explain":out.get("sql_explain")}
 
     @traceable(name="AACT Agent")
     def call_aact(state: OrchestratorState,config) -> OrchestratorState:
-        if not state.get("need_aact"):
+        if not state.get("need_aact") or state.get("call_source")=="summary_toggle":
             return {}
         
         subq = state.get("aact_subq") or state["question"]
-        s_in = {"question": subq, "sql": None, "error": None, "attempts": 0, "summary": None, "df": None}
+        want_chart = state.get("want_chart")
+
+        if state.get("call_source") == "chart_toggle":
+            s_in = {"question": subq, "df":state.get("aact_df"),
+                    "want_chart":want_chart,"call_source":state.get("call_source")}
+            
+            out = aact_app.invoke(s_in,config = config)
+            return {"aact_figure_json":out.get("figure_json")}
+
+        s_in = {"question": subq, "sql": None, "error": None, "want_chart":want_chart,
+                "attempts": 0, "summary": None, "df": None,"call_source":state.get("call_source")}
         out = aact_app.invoke(s_in,config = config)
-        return {"aact_sql": out.get("sql"), "aact_df": out.get("df"), 
+        return {"aact_sql": out.get("sql"), "aact_df": out.get("df"), "aact_figure_json":out.get("figure_json"),
                 "aact_error": out.get("error"), "aact_sql_explain":out.get("sql_explain")}
     
     @traceable(name="PRICING Agent")
     def call_pricing(state: OrchestratorState,config) -> OrchestratorState:
-        if not state.get("need_pricing"):
+        if not state.get("need_pricing") or state.get("call_source")=="summary_toggle":
             return {}
         
         subq = state.get("pricing_subq") or state["question"]
-        s_in = {"question": subq, "sql": None, "error": None, 
-                "attempts": 0, "summary": None, "df": None,"sql_explain":None}
+        want_chart = state.get("want_chart")
+
+        if state.get("call_source") == "chart_toggle":
+            s_in = {"question": subq, "df":state.get("pricing_df"),
+                    "want_chart":want_chart,"call_source":state.get("call_source")}
+            
+            out = pricing_app.invoke(s_in,config = config)
+            return {"pricing_figure_json":out.get("figure_json")}
+        
+        s_in = {"question": subq, "sql": None, "error": None, "want_chart":want_chart,
+                "attempts": 0, "summary": None, "df": None,"sql_explain":None,"call_source":state.get("call_source")}
         out = pricing_app.invoke(s_in,config = config)
         
-        return {"pricing_sql": out.get("sql"), "pricing_df": out.get("df"), 
+        return {"pricing_sql": out.get("sql"), "pricing_df": out.get("df"), "pricing_figure_json":out.get("figure_json"),
                 "pricing_error": out.get("error"), "pricing_sql_explain":out.get("sql_explain")}
 
 
@@ -410,8 +446,8 @@ Instructions:
 
     # Summarize
     graph.add_edge("gather", "summarize")
-    graph.add_edge("summarize","plot")
-    graph.add_edge("plot", END)
+    graph.add_edge("summarize",END)
+    #graph.add_edge("plot", END)
     graph_final = graph.compile(checkpointer=MemorySaver())
     
 

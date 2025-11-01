@@ -17,6 +17,11 @@ from utils.db_conn import exec_sql
 from utils.helpers import df_to_split_payload
 
 from langgraph.checkpoint.memory import MemorySaver
+
+import plotly.express as px
+import plotly.io as pio
+import types
+from utils.helpers import split_payload_to_df
 # ----------------------------
 # Helpers & validation
 # ----------------------------
@@ -74,6 +79,9 @@ class AgentState(TypedDict):
     summary: Optional[str]
     df:  Optional[Dict[str, Any]]
     sql_explain : Optional[str]
+    want_chart : bool
+    figure_json: Optional[str]
+    call_source: Optional[str]
 
 
 # ----------------------------
@@ -151,6 +159,15 @@ Validator feedback:
 
 
     # -------- Nodes --------
+    def entry_node(state: AgentState) -> AgentState:
+        return {}
+    
+    def decide_after_entry(state: AgentState) -> Literal["draft_sql", "plot"]:
+        # Up to 2 repairs; then try to run (or fail in run_sql if still invalid)
+        if state["call_source"] == "chart_toggle":
+            return "plot"
+        return "draft_sql"
+    
     def draft_sql_node(state: AgentState) -> AgentState:
         msgs = [SystemMessage(SYSTEM_SQL), HumanMessage(state["question"])]
         raw_sql = llm.invoke(msgs).content.strip()
@@ -220,6 +237,95 @@ Validator feedback:
         
         state["sql_explain"] = explain
         return state
+    
+    def plot_node(state: AgentState) -> AgentState:
+        
+        want_chart = state.get('want_chart')
+        if not want_chart:
+            return {}
+   
+        llm = ChatOpenAI(model="gpt-4o", temperature=0)
+
+        def meta(df: Optional[pd.DataFrame]):
+            if isinstance(df, pd.DataFrame) and len(df) > 0:
+                return {
+                    "rows": len(df),
+                    "cols": df.shape[1],
+                    "columns": [str(c) for c in df.columns][:50],
+                    "dtypes": {str(k): str(v) for k, v in df.dtypes.items()},
+                }
+            return {"rows": 0, "cols": 0, "columns": [], "dtypes": {}}
+
+        
+        def run_safely(df, code: str):
+            # basic static hardening
+            banned = [
+                "__import__", "open(", "exec(", "eval(", "subprocess", "os.", "sys.",
+                "requests", "pickle", "shutil", "pathlib", "socket", "import "
+                "pandas.read_", "to_csv", "to_excel", "plotly.io.write", "fig.write"
+            ]
+            low = code.lower()
+            if any(b in low for b in banned):
+                #print(low)
+                raise ValueError("Unsafe code detected in chart snippet.")
+            import plotly.graph_objects as go  # allowed
+            safe_globals = {
+                "__builtins__": types.MappingProxyType({}),  # strip builtins
+                "px": px, "go": go, "pd":pd
+            }
+            safe_locals = {"df": df}
+            exec(code, safe_globals, safe_locals)  # code must set 'fig'
+            fig = safe_locals.get("fig")
+            if fig is None:
+                raise ValueError("The snippet did not create a variable named 'fig'.")
+            return fig
+
+        question = state.get("question") or ""
+        df_to_plot = split_payload_to_df(state.get("df"))
+        if not isinstance(df_to_plot, pd.DataFrame) or len(df_to_plot) == 0:
+            state['chart_error'] = "No data available for plotting from FAERS"
+            return state
+            
+        pmeta = meta(df_to_plot)
+        preview = df_to_plot.head(6).to_string(index=False)
+
+        prompt = f"""
+    You produce minimal Plotly Express code from a pandas DataFrame to visualize the user's question.
+
+    Rules:
+    - Use ONLY: df (pandas.DataFrame to plot), px (plotly.express), go (plotly.graph_objects optional).
+    - ALL IMPORTS ARE ALREADY PRESENT, DO NOT ADD IMPORT STATEMENTS TO THE CODE.
+    - DO NOT add any imports, files, network, or system access statements
+    - End with a variable named: fig
+    - Use clear defaults: informative title, axis labels, and template='plotly_white'.
+    - Time trend -> line/area; categorical comparison -> bar; distribution -> histogram/box/violin; heatmap for matrix-like comparisons.
+    - Use ONLY columns that exist in df.
+    - For PRICING related questions, use a STEP line (Plotly line_shape='hv') instead of slope lines.
+
+    User question:
+    {question}
+
+    DF preview (first 6 rows):
+    {preview}
+
+    PRICING columns: {pmeta['columns']}
+    Return ONLY Python code that uses df and px (and optionally go) and ends with:
+    fig = <plotly figure>
+    """
+        code = llm.invoke(prompt).content.strip()
+        if code.startswith("```"):
+            code = code.strip("` \n")
+            if "\n" in code and code.split("\n", 1)[0].lower().startswith("python"):
+                code = code.split("\n", 1)[1]
+
+        try:
+            fig = run_safely(df_to_plot, code)
+            fig.update_layout(template="plotly_white")
+            state["figure_json"] = fig.to_json()
+            return state
+        except Exception as e:
+            state["chart_error"]= f"Chart generation failed: {e}"
+            return state
 
     def done_node(state: AgentState) -> AgentState:
         # Nothing to do; terminal summarization could go here if desired.
@@ -227,14 +333,20 @@ Validator feedback:
 
     # -------- Graph wiring --------
     graph = StateGraph(AgentState)
+    graph.add_node("entry",entry_node)
     graph.add_node("draft_sql", draft_sql_node)
     graph.add_node("validate_sql", validate_sql_node)
     graph.add_node("revise_sql", revise_sql_node)
     graph.add_node("run_sql", run_sql_node)
     graph.add_node("explain_sql",explain_sql)
+    graph.add_node("plot",plot_node)
     graph.add_node("done", done_node)
 
-    graph.set_entry_point("draft_sql")
+    graph.set_entry_point("entry")
+    graph.add_conditional_edges("entry", decide_after_entry, {
+        "plot": "plot",
+        "draft_sql": "draft_sql",
+    })
     graph.add_edge("draft_sql", "validate_sql")
     graph.add_conditional_edges("validate_sql", decide_next_after_validate, {
         "revise_sql": "revise_sql",
@@ -249,7 +361,9 @@ Validator feedback:
         "explain": "explain_sql",
     })
     
-    graph.add_edge("explain_sql", "done")
+    graph.add_edge("explain_sql", "plot")
+    graph.add_edge("plot", "done")
+
 
     graph.add_edge("done", END)
 
