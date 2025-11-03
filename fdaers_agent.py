@@ -1,5 +1,4 @@
-# agent.py — LangGraph/validator wrapper WITH DB execution
-# Adds an explicit `run_sql` node that executes the query, then goes to `done`.
+
 
 import os, re, json
 from functools import lru_cache
@@ -20,52 +19,52 @@ from utils.helpers import df_to_split_payload
 import plotly.express as px
 import plotly.io as pio
 import types
-from utils.helpers import split_payload_to_df
+from utils.helpers import split_payload_to_df,make_column_inventory,make_join_hints,clean_sql,validate_sql
 
 
 # ----------------------------
 # Helpers & validation
 # ----------------------------
-def make_column_inventory(catalog: Dict[str, Any]) -> str:
-    lines = []
-    for t in catalog.get("tables", []):
-        cols = ", ".join([c["name"] for c in t.get("columns", [])])
-        lines.append(f"- {t['name']}: {cols}")
-    return "\n".join(lines) if lines else "None"
+# def make_column_inventory(catalog: Dict[str, Any]) -> str:
+#     lines = []
+#     for t in catalog.get("tables", []):
+#         cols = ", ".join([c["name"] for c in t.get("columns", [])])
+#         lines.append(f"- {t['name']}: {cols}")
+#     return "\n".join(lines) if lines else "None"
 
-def make_join_hints(catalog: Dict[str, Any]) -> str:
-    rels = catalog.get("relationships", [])
-    if not rels:
-        return "None"
-    return "\n".join([
-        f"- {r['from_table']}.{','.join(r['from_columns'])} ↔ {r['to_table']}.{','.join(r['to_columns'])} [{r.get('type','')}]"
-        for r in rels
-    ])
+# def make_join_hints(catalog: Dict[str, Any]) -> str:
+#     rels = catalog.get("relationships", [])
+#     if not rels:
+#         return "None"
+#     return "\n".join([
+#         f"- {r['from_table']}.{','.join(r['from_columns'])} ↔ {r['to_table']}.{','.join(r['to_columns'])} [{r.get('type','')}]"
+#         for r in rels
+#     ])
 
-def clean_sql(sql: str) -> str:
-    """Strip ```sql fences and trim."""
-    if not sql:
-        return ""
-    s = sql.strip()
-    s = re.sub(r"^```[a-zA-Z]*\s*", "", s)  # remove opening ``` / ```sql
-    s = re.sub(r"\s*```$", "", s)           # remove trailing ```
-    return s.strip()
+# def clean_sql(sql: str) -> str:
+#     """Strip ```sql fences and trim."""
+#     if not sql:
+#         return ""
+#     s = sql.strip()
+#     s = re.sub(r"^```[a-zA-Z]*\s*", "", s)  # remove opening ``` / ```sql
+#     s = re.sub(r"\s*```$", "", s)           # remove trailing ```
+#     return s.strip()
 
 DISALLOWED = re.compile(r"\b(insert|update|delete|drop|alter|create|copy|grant|revoke|truncate|vacuum)\b", re.I)
 
-def validate_sql(sql: str) -> Optional[str]:
-    s = (sql or "").strip()
-    if not re.match(r"^\s*(with|select)\b", s, flags=re.I | re.S):
-        return "Only WITH/SELECT queries are allowed."
-    if DISALLOWED.search(s):
-        return "Disallowed SQL keyword detected."
-    # try:
-    #     parsed = sqlglot.parse_one(s, read="postgres")
-    # except Exception as e:
-    #     return f"SQL parse error: {e}"
-    # if parsed is None:
-    #     return "Empty or unparsable SQL."
-    return None
+# def validate_sql(sql: str) -> Optional[str]:
+#     s = (sql or "").strip()
+#     if not re.match(r"^\s*(with|select)\b", s, flags=re.I | re.S):
+#         return "Only WITH/SELECT queries are allowed."
+#     if DISALLOWED.search(s):
+#         return "Disallowed SQL keyword detected."
+#     # try:
+#     #     parsed = sqlglot.parse_one(s, read="postgres")
+#     # except Exception as e:
+#     #     return f"SQL parse error: {e}"
+#     # if parsed is None:
+#     #     return "Empty or unparsable SQL."
+#     return None
 
 
 # ----------------------------
