@@ -21,6 +21,7 @@ from utils.helpers import split_payload_to_df
 from PIL import Image
 from io import BytesIO
 import base64
+import hashlib
 
 if "thread_id" not in st.session_state:
     st.session_state.thread_id = str(uuid.uuid4())
@@ -36,6 +37,33 @@ if "last_want_chart" not in st.session_state:
     st.session_state.last_want_chart = True
 if "chart_refresh" not in st.session_state:
     st.session_state.chart_refresh = False
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+# --- Your user credentials (you can load from env vars instead) ---
+USERS = {
+    st.secrets['login_creds']['username1']: hash_password(st.secrets['login_creds']['password1'])
+}
+
+def login():
+    st.title("Apperture Dashboard Login")
+
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+
+    if st.button("Login"):
+        if username in USERS and USERS[username] == hash_password(password):
+            st.session_state["logged_in"] = True
+            st.session_state["user"] = username
+            st.rerun()
+        else:
+            st.error("❌ Invalid username or password.")
+
+
+if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
+    login()
+    st.stop()  # Prevent the rest of the app from showing
+
 
 def encode_image(path):
     img = Image.open(path)
