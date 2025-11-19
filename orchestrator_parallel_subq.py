@@ -291,7 +291,7 @@ def build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app):
                     "rows": len(df),
                     "cols": df.shape[1],
                     "columns": [str(c) for c in df.columns][:40],
-                    "sample": df.head(100).to_dict("records"),
+                    "sample": df.head(100).to_dict("records")
                 }
             return {"rows": 0, "cols": 0, "columns": [], "sample": []}
 
@@ -339,6 +339,7 @@ Instructions:
 - Do NOT dump tables; surface patterns, outliers, caveats.
 - Suggest 1–3 concrete next steps.
 - DO NOT MAKE UP summary, please derive only from results of sql data.
+- Preserve all numeric fields exactly as shown.
 - Confine your summary to 2000 words.
 """
         ans = llm.invoke(prompt).content

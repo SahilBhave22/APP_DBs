@@ -126,6 +126,7 @@ Rules:
 - Always use ilike on drug_classes.brand_name column to join drug_classes table
 - ALWAYS use ilike with string matching like "%brand name%" to match brand names.
 - DO NOT TAKE YEAR or MONTH level aggregates unless user specifically asks.
+- Always use distinct keyword for the final subquery, we dont want duplicate rows
 - Default LIMIT {default_limit} unless the user asks for more.
 - Keep the query readable and minimal (CTEs encouraged).
 - MAKE SURE THAT THE QUERY SYNTAX IS ACCURATE AND VALUES REFERENCED IN sub queries are used correctly
