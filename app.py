@@ -18,6 +18,9 @@ from google.cloud.sql.connector import Connector, IPTypes
 import sqlalchemy
 import uuid
 from utils.helpers import split_payload_to_df
+from PIL import Image
+from io import BytesIO
+import base64
 
 if "thread_id" not in st.session_state:
     st.session_state.thread_id = str(uuid.uuid4())
@@ -34,7 +37,24 @@ if "last_want_chart" not in st.session_state:
 if "chart_refresh" not in st.session_state:
     st.session_state.chart_refresh = False
 
-st.set_page_config(page_title="FDAERS + Clinical Trials ", layout="wide")
+def encode_image(path):
+    img = Image.open(path)
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    return base64.b64encode(buf.getvalue()).decode()
+
+logo_base64 = encode_image("assets/logos/APP_logo1.png") 
+
+st.markdown(
+    f"""
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <img src="data:image/png;base64,{logo_base64}" width="70">
+        <h1 style="margin: 0;">Apperture Dashboard</h1>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+st.set_page_config(page_title="FDAERS + Clinical Trials", layout="wide", page_icon='assets/logos/APP_logo1.png')
 
 
 OPENAI_KEY     = st.secrets.get("openai_api_key")
@@ -69,7 +89,7 @@ def get_apps():
     
     return orch_app
 
-st.title("Apperture Dashboard")
+#st.title("Apperture Dashboard")
 
 
 with st.sidebar:

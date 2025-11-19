@@ -1,0 +1,6 @@
+[theme]
+primaryColor = "#1a3e6e"     # <-- your button color
+backgroundColor = "#f4f8ff"
+secondaryBackgroundColor = "#e6eefc"
+textColor = "#000000"
+font = "sans serif"

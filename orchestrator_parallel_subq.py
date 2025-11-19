@@ -190,8 +190,8 @@ Rules:
             "diseases":None
         }
 
-    print(data.get("drugs"))
-    print(data.get("diseases"))
+    #print(data.get("drugs"))
+    #print(data.get("diseases"))
 
     return{
         "drugs":data.get("drugs"),
