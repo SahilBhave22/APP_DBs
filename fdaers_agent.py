@@ -2,7 +2,7 @@
 
 import os, re, json
 from functools import lru_cache
-from typing import TypedDict, Optional, Dict, Any, Literal
+from typing import TypedDict, Optional, Dict, Any, Literal,List
 
 import pandas as pd
 from sqlalchemy import create_engine, text
@@ -83,6 +83,9 @@ class AgentState(TypedDict):
     figure_json: Optional[str]
     call_source: Optional[str]
 
+    drugs: Optional[List[str]]
+    diseases : Optional[List[str]]
+
 
 
 # ----------------------------
@@ -102,42 +105,6 @@ def build_fdaers_agent(
     column_inventory = make_column_inventory(catalog)
     join_hints = make_join_hints(catalog)
 
-    SYSTEM_SQL = f"""You are an expert FAERS analyst who writes clean, safe PostgreSQL.
-
-Rules:
-- Output ONE SQL query only (no commentary, no code fences).
-- Read-only: WITH/SELECT only; never DDL/DML or COPY.
-- STRICTLY Use only tables/columns that appear in the SCHEMA CATALOG below.
-- Deduplicate at the report level with COUNT(DISTINCT demo.primaryid) or COUNT(DISTINCT drug_cases.primaryid).
-- Prefer joins:
-  - demo.primaryid ↔ drug_cases.primaryid
-  - indi.(primaryid, indi_drug_seq) ↔ drug_cases.(primaryid, drug_seq)
-  - reac.primaryid ↔ demo.primaryid
-- Case-insensitive filters: use ILIKE for text.
-- BE VERY CAREFUL AND CHECK WHETHER DATA IS ASKED FOR A BRAND NAME OR DRUG CLASS
-- TO get drugs associated with a drug class, ALWAYS USE drug_classes TABLE and use ILIKE for filters.
-- DO NOT USE atc_code as filter, ALWAYS USE atc_class_name
-- For all drugs within a class, ALWAYS give data segregated by brand name.
-- Guidance for comparative queries
-    - IF comparsion among 2 drugs is asked, make sure to add a stratification by the brand_name too.
-    - Always compute per-group aggregates.
-    - Use a window function which partitions by whatever groups are required and sorts it by count.
-    - Filter with WHERE rank_col <= N to return top-N per group.
-    - Do not use a global LIMIT N, since that only applies across the whole result set.
-    - Preserve deduplication (e.g., COUNT(DISTINCT demo.primaryid)) as usual.
-- When SOC/ Organ system level counts are asked, ALWAYS GROUP BY PT and take sum for all PTs within every SOC.
-- For SOC/ Organ System level counts, DO NOT GROUP BY SOC, always group by PT and take summation.
-- DO NOT USE ROR tables UNLESS USER SPECIFICALLY ASKS. DEFAULT CHOICE SHOULD BE COUNT(DISTINCT demo.primaryid)).
-- Guidance for ROR / Signal analysis queries
-    - ALWAYS USE public.top_n_ror table for signal strength analysis.
-- Default LIMIT {default_limit} unless the user asks for more.
-- Keep the query readable and minimal (CTEs encouraged).
-- MAKE SURE THAT THE QUERY SYNTAX IS ACCURATE AND VALUES REFERENCED IN sub queries are used correctly
-
-SCHEMA CATALOG:
-{json.dumps(catalog)}
-
-"""
 
     SYSTEM_REVISE = f"""You are repairing a PostgreSQL query to satisfy validator feedback.
 
@@ -169,13 +136,89 @@ Validator feedback:
     def entry_node(state: AgentState) -> AgentState:
         return {}
     
-    def decide_after_entry(state: AgentState) -> Literal["draft_sql", "plot"]:
+    def decide_after_entry(state: AgentState) -> Literal["draft_sql", "plot","get_drugs"]:
         
         if state["call_source"] == "chart_toggle":
             return "plot"
-        return "draft_sql"
+        else:
+            if state["drugs"] is not None or state["diseases"] is None:
+                return "draft_sql"
+            return "get_drugs"
+    
+        
+    def get_drugs(state: AgentState) -> AgentState:
+        all_drugs_query = "select distinct brand_name from public.drug_cases;"
+        all_df = exec_sql(all_drugs_query,db_key="fdaers")
+        all_drugs = all_df['brand_name'].dropna().astype(str).unique().tolist()
+        #print(all_drugs)
+        SYSTEM_FETCH = f"""
+You are given:
+1. A list of all drug names available in the database.
+2. A set of criteria that describe which subset of drugs we want.
+
+Your task:
+- Output ONLY a valid JSON array of strings (max 20). No prose, no markdown.
+- Selection must be a subset of CATALOG (case-insensitive compare).
+- Use your knowledge of the terms in DISEASE CRITERIA (disease classes, disease mentions).
+- DO NOT MAKE UP DRUGS that are not in the catalog
+- CAREFULLY examine each brand name in the provided catalog, DO NOT miss any drugs.
+- If nothing matches, return [].
+
+all_drugs catalog : {all_drugs}
+disease areas for which the drugs are approved: {state['diseases']}
+"""
+        
+        msgs = [SystemMessage(SYSTEM_FETCH)]
+        raw_select_drugs = llm_mini.invoke(msgs).content
+        print("raw selected drugs")
+        print(raw_select_drugs)
+        raw_select_drugs = re.sub(r"^```[a-zA-Z]*\n?|```$", "", raw_select_drugs).strip()
+        select_drugs = json.loads(raw_select_drugs)
+        state['drugs'] = select_drugs
+        return state
+
+
+
     
     def draft_sql_node(state: AgentState) -> AgentState:
+        SYSTEM_SQL = f"""You are an expert FAERS analyst who writes clean, safe PostgreSQL.
+
+Rules:
+- Output ONE SQL query only (no commentary, no code fences).
+- Read-only: WITH/SELECT only; never DDL/DML or COPY.
+- STRICTLY Use only tables/columns that appear in the SCHEMA CATALOG below.
+- Deduplicate at the report level with COUNT(DISTINCT demo.primaryid) or COUNT(DISTINCT drug_cases.primaryid).
+- Prefer joins:
+  - demo.primaryid <-> drug_cases.primaryid
+  - indi.(primaryid, indi_drug_seq) <-> drug_cases.(primaryid, drug_seq)
+  - reac.primaryid <-> demo.primaryid
+- Case-insensitive filters: use ILIKE for text.
+- BE VERY CAREFUL AND CHECK WHETHER DATA IS ASKED FOR A BRAND NAME OR DRUG CLASS
+- TO get drugs associated with a drug class, ALWAYS USE drug_classes TABLE and use ILIKE for filters.
+- DO NOT USE atc_code as filter, ALWAYS USE atc_class_name
+- If {state['drugs']} is not none, ALWAYS USE IT AS A SUBSET FOR ANY OTHER FILTERS.
+- If {state['diseases']} is not none, DO NOT USE INDI TABLE. 
+- For a drugs list, ALWAYS give data segregated by brand name.
+- DO NOT USE ROR tables UNLESS USER SPECIFICALLY ASKS. DEFAULT CHOICE SHOULD BE COUNT(DISTINCT demo.primaryid)).
+- Guidance for comparative queries
+    - IF comparsion among 2 drugs is asked, make sure to add a stratification by the brand_name too.
+    - Always compute per-group aggregates.
+    - Use a window function which partitions by whatever groups are required and sorts it by count.
+    - Filter with WHERE rank_col <= N to return top-N per group.
+    - Do not use a global LIMIT N, since that only applies across the whole result set.
+    - Preserve deduplication (e.g., COUNT(DISTINCT demo.primaryid)) as usual.
+- When SOC/ Organ system level counts are asked, ALWAYS GROUP BY PT and take sum for all PTs within every SOC.
+- For SOC/ Organ System level counts, DO NOT GROUP BY SOC, always group by PT and take summation.
+- Guidance for ROR / Signal analysis queries
+    - ALWAYS USE public.top_n_ror table for signal strength analysis.
+- Default LIMIT {default_limit} unless the user asks for more.
+- Keep the query readable and minimal (CTEs encouraged).
+- MAKE SURE THAT THE QUERY SYNTAX IS ACCURATE AND VALUES REFERENCED IN sub queries are used correctly
+
+SCHEMA CATALOG:
+{json.dumps(catalog)}
+
+"""
         msgs = [SystemMessage(SYSTEM_SQL), HumanMessage(state["question"])]
         raw_sql = llm.invoke(msgs).content.strip()
         state["sql"] = clean_sql(raw_sql)
@@ -246,13 +289,11 @@ Validator feedback:
         return state
     
     def plot_node(state: AgentState) -> AgentState:
-        print("hello before")
         want_chart = state.get('want_chart')
         if not want_chart:
             return {}
    
         llm = ChatOpenAI(model="gpt-4o", temperature=0)
-        print("hello fig fdaers")
         def meta(df: Optional[pd.DataFrame]):
             if isinstance(df, pd.DataFrame) and len(df) > 0:
                 return {
@@ -308,7 +349,8 @@ Validator feedback:
     - Time trend -> line/area; categorical comparison -> bar; distribution -> histogram/box/violin; heatmap for matrix-like comparisons.
     - Use ONLY columns that exist in df.
     - For PRICING related questions, use a STEP line (Plotly line_shape='hv') instead of slope lines.
-
+    - Always show difference in drug names provided in the drugs list.
+    
     User question:
     {question}
 
@@ -316,6 +358,8 @@ Validator feedback:
     {preview}
 
     FAERS columns: {fmeta['columns']}
+
+    List of drugs in the data: {state['drugs']}
     Return ONLY Python code that uses df and px (and optionally go) and ends with:
     fig = <plotly figure>
     """
@@ -345,6 +389,7 @@ Validator feedback:
     graph = StateGraph(AgentState)
     graph.add_node("entry",entry_node)
     graph.add_node("draft_sql", draft_sql_node)
+    graph.add_node("get_drugs",get_drugs)
     graph.add_node("validate_sql", validate_sql_node)
     graph.add_node("revise_sql", revise_sql_node)
     graph.add_node("run_sql", run_sql_node)
@@ -357,7 +402,9 @@ Validator feedback:
     graph.add_conditional_edges("entry", decide_after_entry, {
         "plot": "plot",
         "draft_sql": "draft_sql",
+        "get_drugs": "get_drugs"
     })
+    graph.add_edge("get_drugs","draft_sql")
     graph.add_edge("draft_sql", "validate_sql")
     graph.add_conditional_edges("validate_sql", decide_next_after_validate, {
         "revise_sql": "revise_sql",

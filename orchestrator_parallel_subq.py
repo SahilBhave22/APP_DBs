@@ -1,6 +1,6 @@
 # orchestrator_parallel_subq.py
 from __future__ import annotations
-from typing import TypedDict, Optional, Dict, Any
+from typing import TypedDict, Optional, Dict, Any,List
 from dataclasses import dataclass
 import json
 import pandas as pd
@@ -21,6 +21,10 @@ from utils.helpers import split_payload_to_df
 # ---------- Orchestrator state ----------
 class OrchestratorState(TypedDict, total=False):
     question: str
+
+    drugs : Optional[List[str]]
+    #classes : Optional[List[str]]
+    diseases : Optional[List[str]]
     want_summary:bool
     want_chart : bool
     call_source: Optional[str]
@@ -157,6 +161,45 @@ Return JSON ONLY NO TRAILING CHARACTERS:
         "pricing_subq": data.get("pricing_subq") if data.get("pricing_subq") is not None else state.get('pricing_subq'),
     }
 
+
+def criteria_node(state: OrchestratorState) -> OrchestratorState:
+
+    llm_mini = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+    system = f"""You are an information extractor. Your job is to identify whether the user has mentioned drug names or other criteria in the question.
+    Here is the question: {state['question']}
+Return a JSON with three lists: drugs, classes, and diseases.
+Rules: 
+- First, check whether user mentions drug names or other criteria.
+- 'drugs' → explicit brand or generic drug names (e.g., Alecensa, Lorbrena, Pembrolizumab). If explicit brand names are not mentioned, keep this NULL.
+- 'diseases' → cancer types or disease mentions. If the user does not mention any disease area, keep this as NULL.
+- If none found, return empty lists.
+- Return JSON ONLY NO TRAILING CHARACTERS:
+{{
+  "drugs": List[str] or null
+  "diseases": List[str] or null
+}}"""
+
+    try:
+        resp = llm_mini.invoke([{"role":"system","content":system}]).content
+        resp = re.sub(r"^```(?:json)?|```$", "", resp.strip(), flags=re.MULTILINE).strip()
+        data = json.loads(resp)
+    except Exception as e:
+        print(e)
+        data = {
+            "drugs":None,
+            "diseases":None
+        }
+
+    print(data.get("drugs"))
+    print(data.get("diseases"))
+
+    return{
+        "drugs":data.get("drugs"),
+        "diseases":data.get("diseases")
+    }
+
+
+
 # ---------- Orchestrator builder (wire in your compiled agent apps) ----------
 def build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app):
     """
@@ -173,14 +216,16 @@ def build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app):
         want_chart = state.get("want_chart")
 
         if state.get("call_source") == "chart_toggle":
-            s_in = {"question": subq, "df":state.get("faers_df"),
+            s_in = {"question": subq, "df":state.get("faers_df"), "drugs":state.get("drugs"),
                     "want_chart":want_chart,"call_source":state.get("call_source")}
             
             out = faers_app.invoke(s_in,config = config)
             return {"faers_figure_json":out.get("figure_json")}
     
         s_in = {"question": subq, "sql": None, "error": None, "want_chart" : want_chart,
-                "attempts": 0, "summary": None, "df": None,"sql_explain":None,"call_source":state.get("call_source")}
+                "attempts": 0, "summary": None, "df": None,"sql_explain":None,
+                "call_source":state.get("call_source"), "drugs":state.get('drugs'),
+                "classes":state.get('classes'),"diseases":state.get('diseases')}
         out = faers_app.invoke(s_in,config = config)
             
         return {"faers_sql": out.get("sql"), "faers_df": out.get("df"), "faers_figure_json":out.get("figure_json"),
@@ -425,6 +470,7 @@ Instructions:
     
     # ---------- Graph (parallel fan-out) ----------
     graph = StateGraph(OrchestratorState)
+    graph.add_node("criteria", criteria_node)
     graph.add_node("router", router_node)
     graph.add_node("faers", call_faers)
     graph.add_node("aact", call_aact)
@@ -432,9 +478,10 @@ Instructions:
     graph.add_node("gather", gather_node)
     graph.add_node("summarize", summarize_node)
     graph.add_node("plot",plot_node)
-    graph.set_entry_point("router")
+    graph.set_entry_point("criteria")
 
     # Fan-out: run both agents concurrently; each checks its own flag
+    graph.add_edge("criteria","router")
     graph.add_edge("router", "faers")
     graph.add_edge("router", "aact")
     graph.add_edge("router", "pricing")

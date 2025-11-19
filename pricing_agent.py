@@ -120,6 +120,10 @@ Rules:
 - Output ONE SQL query only (no commentary, no code fences).
 - Read-only: WITH/SELECT only; never DDL/DML or COPY.
 - STRICTLY Use only tables/columns that appear in the SCHEMA CATALOG below.
+- BE VERY CAREFUL AND CHECK WHETHER DATA IS ASKED FOR A BRAND NAME OR DRUG CLASS
+- TO get drugs associated with a drug class, ALWAYS USE drug_classes TABLE and use ILIKE for filters.
+- DO NOT USE atc_code as filter, ALWAYS USE atc_class_name
+- Always use ilike on drug_classes.brand_name column to join drug_classes table
 - ALWAYS use ilike with string matching like "%brand name%" to match brand names.
 - DO NOT TAKE YEAR or MONTH level aggregates unless user specifically asks.
 - Default LIMIT {default_limit} unless the user asks for more.
