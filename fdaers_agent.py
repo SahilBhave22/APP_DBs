@@ -84,7 +84,7 @@ class AgentState(TypedDict):
     call_source: Optional[str]
 
     drugs: Optional[List[str]]
-    diseases : Optional[List[str]]
+    criteria : Optional[List[str]]
 
 
 
@@ -141,9 +141,9 @@ Validator feedback:
         if state["call_source"] == "chart_toggle":
             return "plot"
         else:
-            if state["drugs"] is not None or state["diseases"] is None:
-                return "draft_sql"
-            return "get_drugs"
+            # if state["drugs"] is not None or state["diseases"] is None:
+            #     return "draft_sql"
+            return "draft_sql"
     
         
     def get_drugs(state: AgentState) -> AgentState:
@@ -197,7 +197,6 @@ Rules:
 - TO get drugs associated with a drug class, ALWAYS USE drug_classes TABLE and use ILIKE for filters.
 - DO NOT USE atc_code as filter, ALWAYS USE atc_class_name
 - If {state['drugs']} is not none, ALWAYS USE IT AS A SUBSET FOR ANY OTHER FILTERS.
-- If {state['diseases']} is not none, DO NOT USE INDI TABLE. 
 - For a drugs list, ALWAYS give data segregated by brand name.
 - DO NOT USE ROR tables UNLESS USER SPECIFICALLY ASKS. DEFAULT CHOICE SHOULD BE COUNT(DISTINCT demo.primaryid)).
 - Guidance for comparative queries

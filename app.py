@@ -37,6 +37,13 @@ if "last_want_chart" not in st.session_state:
     st.session_state.last_want_chart = True
 if "chart_refresh" not in st.session_state:
     st.session_state.chart_refresh = False
+
+if "drugs" not in st.session_state:
+    st.session_state.drugs = None
+if "criteria" not in st.session_state:
+    st.session_state.criteria = None
+
+
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
@@ -45,24 +52,24 @@ USERS = {
     st.secrets['login_creds']['username1']: hash_password(st.secrets['login_creds']['password1'])
 }
 
-def login():
-    st.title("Apperture Dashboard Login")
+# def login():
+#     st.title("Apperture Dashboard Login")
 
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
+#     username = st.text_input("Username")
+#     password = st.text_input("Password", type="password")
 
-    if st.button("Login"):
-        if username in USERS and USERS[username] == hash_password(password):
-            st.session_state["logged_in"] = True
-            st.session_state["user"] = username
-            st.rerun()
-        else:
-            st.error("❌ Invalid username or password.")
+#     if st.button("Login"):
+#         if username in USERS and USERS[username] == hash_password(password):
+#             st.session_state["logged_in"] = True
+#             st.session_state["user"] = username
+#             st.rerun()
+#         else:
+#             st.error("❌ Invalid username or password.")
 
 
-if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
-    login()
-    st.stop()  # Prevent the rest of the app from showing
+# if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
+#     login()
+#     st.stop()  # Prevent the rest of the app from showing
 
 
 def encode_image(path):
@@ -145,7 +152,10 @@ if want_summary != st.session_state.last_want_summary:
                                 "want_summary": want_summary,
                                 "default_limit": int(default_limit),
                                 "chat_history": st.session_state.messages[-5:],
-                                "call_source":"summary_toggle"
+                                "call_source":"summary_toggle",
+                                "drugs": st.session_state.drugs,
+                                "criteria": st.session_state.criteria
+                                
                             }, config=cfg)
             st.session_state.current_result = out
         
@@ -158,7 +168,9 @@ if want_chart != st.session_state.last_want_chart:
                                 "want_summary": want_summary,
                                 "default_limit": int(default_limit),
                                 "chat_history": st.session_state.messages[-5:],
-                                "call_source":"chart_toggle"
+                                "call_source":"chart_toggle",
+                                "drugs": st.session_state.drugs,
+                                "criteria": st.session_state.criteria
                             }, config=cfg)
             st.session_state.current_result = out
 
@@ -177,11 +189,16 @@ if st.button("Run", type="primary"):
                             "want_summary": want_summary,
                             "default_limit": int(default_limit),
                             "chat_history": st.session_state.messages[-5:],
-                            "call_source":"database"
+                            "call_source":"database",
+                            "drugs":st.session_state.drugs,
+                            "criteria": st.session_state.criteria
+
                         }, config=cfg)
         st.session_state.current_result = out
         st.session_state.summary_refresh = True    
         st.session_state.chart_refresh = True
+        st.session_state.drugs = out.get('drugs')
+        st.session_state.criteria = out.get('criteria')
 
 out = st.session_state.get("current_result")
 if out:

@@ -1,7 +1,7 @@
 
 import os, re, json
 from functools import lru_cache
-from typing import TypedDict, Optional, Dict, Any, Literal
+from typing import TypedDict, Optional, Dict, Any, Literal,List
 
 import pandas as pd
 from sqlalchemy import create_engine, text
@@ -81,6 +81,8 @@ class AgentState(TypedDict):
     want_chart : bool
     figure_json: Optional[str]
     call_source: Optional[str]
+    drugs: Optional[List[str]]
+    criteria : Optional[List[str]]
 
 
 # ----------------------------
@@ -114,27 +116,7 @@ def build_pricing_agent(
     #column_inventory = make_column_inventory(catalog)
     #join_hints = make_join_hints(catalog)
 
-    SYSTEM_SQL = f"""You are an expert PICING analyst who writes clean, safe PostgreSQL.
-
-Rules:
-- Output ONE SQL query only (no commentary, no code fences).
-- Read-only: WITH/SELECT only; never DDL/DML or COPY.
-- STRICTLY Use only tables/columns that appear in the SCHEMA CATALOG below.
-- BE VERY CAREFUL AND CHECK WHETHER DATA IS ASKED FOR A BRAND NAME OR DRUG CLASS
-- TO get drugs associated with a drug class, ALWAYS USE drug_classes TABLE and use ILIKE for filters.
-- DO NOT USE atc_code as filter, ALWAYS USE atc_class_name
-- Always use ilike on drug_classes.brand_name column to join drug_classes table
-- ALWAYS use ilike with string matching like "%brand name%" to match brand names.
-- DO NOT TAKE YEAR or MONTH level aggregates unless user specifically asks.
-- Always use distinct keyword for the final subquery, we dont want duplicate rows
-- Default LIMIT {default_limit} unless the user asks for more.
-- Keep the query readable and minimal (CTEs encouraged).
-- MAKE SURE THAT THE QUERY SYNTAX IS ACCURATE AND VALUES REFERENCED IN sub queries are used correctly
-
-SCHEMA CATALOG:
-{json.dumps(catalog)}
-
-"""
+   
 
     SYSTEM_REVISE = f"""You are repairing a PostgreSQL query to satisfy validator feedback.
 
@@ -173,6 +155,29 @@ Validator feedback:
         return "draft_sql"
     
     def draft_sql_node(state: AgentState) -> AgentState:
+        SYSTEM_SQL = f"""You are an expert PICING analyst who writes clean, safe PostgreSQL.
+
+Rules:
+- Output ONE SQL query only (no commentary, no code fences).
+- Read-only: WITH/SELECT only; never DDL/DML or COPY.
+- STRICTLY Use only tables/columns that appear in the SCHEMA CATALOG below.
+-If {state['drugs']} is not none, ALWAYS USE IT AS A SUBSET FOR ANY OTHER FILTERS.
+- If{state['criteria']} is not none, ALWAYS USE IT TO GET RELEVANT DRUGS.
+- BE VERY CAREFUL AND CHECK WHETHER DATA IS ASKED FOR A BRAND NAME OR DRUG CLASS
+- TO get drugs associated with a drug class, ALWAYS USE drug_classes TABLE and use ILIKE for filters.
+- DO NOT USE atc_code as filter, ALWAYS USE atc_class_name
+- Always use ilike on drug_classes.brand_name column to join drug_classes table
+- ALWAYS use ilike with string matching like "%brand name%" to match brand names.
+- DO NOT TAKE YEAR or MONTH level aggregates unless user specifically asks.
+- Always use distinct keyword for the final subquery, we dont want duplicate rows
+- Default LIMIT {default_limit} unless the user asks for more.
+- Keep the query readable and minimal (CTEs encouraged).
+- MAKE SURE THAT THE QUERY SYNTAX IS ACCURATE AND VALUES REFERENCED IN sub queries are used correctly
+
+SCHEMA CATALOG:
+{json.dumps(catalog)}
+
+"""
         msgs = [SystemMessage(SYSTEM_SQL), HumanMessage(state["question"])]
         raw_sql = llm.invoke(msgs).content.strip()
         state["sql"] = clean_sql(raw_sql)

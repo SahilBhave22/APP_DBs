@@ -24,7 +24,7 @@ class OrchestratorState(TypedDict, total=False):
 
     drugs : Optional[List[str]]
     #classes : Optional[List[str]]
-    diseases : Optional[List[str]]
+    criteria : Optional[List[str]]
     want_summary:bool
     want_chart : bool
     call_source: Optional[str]
@@ -95,36 +95,77 @@ def default_signals() -> Signals:
         ],
     )
 
+
 def router_node(state: OrchestratorState) -> OrchestratorState:
 
+    if(state.get('call_source')!= 'database'):
+        return {
+            "need_faers": state.get('faers_df') is not None,
+            "need_aact": state.get('aact_df') is not None,
+            "need_pricing": state.get('pricing_df') is not None
+        }
+    
     llm = ChatOpenAI(model="gpt-4o", temperature=0)
     sig = default_signals()
 
     system = (
         "You are a routing planner for a multi-DB QA system.\n"
         "Decide which databases are needed and craft concise, natural language sub-questions for each.\n"
-        "Output STRICT JSON with keys: need_faers (bool), need_aact (bool), "
+        "Output STRICT JSON with keys: drugs(List[str]),criteria(List[str]),need_faers (bool), need_aact (bool), "
         "router_rationale (str), faers_subq (str or null), aact_subq (str or null).\n"
         "DO NOT GIVE ANY TRAILING OR LEADING CHARACTERS AROUND THE JSON"
         "Guidance:\n"
+        "- Check wether user mentions drug names or other criteria."
+        "- 'drugs' → explicit brand or generic drug names . If explicit brand names are not mentioned, keep this NULL. \n"
+        "- 'criteria' → disease area or drug class. If the user does not mention any, keep this as NULL."
         "- FAERS for spontaneous safety. Take aggregates across primary ids. \n"
         "- AACT for trials .Take aggregates across nct ids.\n"
         "- PRICING for drug pricing information. \n "
         "- If the user intent implies both, set both booleans true.\n"
-        "- If the user criteria applies to both databases, frame sub-questions accordingly.\n"
-        "- Sub-questions should be in natural language and should only be extracted from the original question\n"
-        "- DO NOT invent or rephrase extra conditions for sub-questions.\n"
+       
+        "Conversation context rules:\n"
+    "- You will be given previously active drugs and criteria, and the current user question.\n"
+    "- FIRST, read ONLY the current user question and identify any explicit drug names mentioned there.\n"
+    "  Call these current_question_drugs.\n"
+    "- If current_question_drugs is NOT EMPTY, you MUST:\n"
+    "    * set the JSON 'drugs' field = current_question_drugs, and\n"
+    "    * IGNORE previously_active_drugs for the 'drugs' field and for sub-questions.\n"
+    "- ONLY IF current_question_drugs is EMPTY and previously_active_drugs is not empty,\n"
+    "  reuse previously_active_drugs in the 'drugs' field and in all sub-questions.\n"
+    "- Apply the same logic for 'criteria' using current_question_criteria vs previously_active_criteria.\n"
+    "\n"
+    "Sub-question rules:\n"
+    "- Sub-questions should be concise and in natural language.\n"
+    "- They should reflect the EFFECTIVE drugs/criteria (either new or carried over from context).\n"
+    "- Do NOT introduce any new drugs or criteria that are not in the current question or the provided context.\n"
     )
+
     user = f"""
-User question:
+Previously active filters:
+- previously_active_drugs: {state.get('drugs')}
+- previously_active_criteria: {state.get('criteria')}
+
+Current user question:
 {state['question']}
 
-FAERS hints: {", ".join(sig.faers_terms)}
+IMPORTANT LOGIC FOR DRUGS AND CRITERIA:
+- Step 1: Look at ONLY the current user question and extract any explicit brand or generic drug names.
+  Call them current_question_drugs.
+- Step 2: If current_question_drugs is NOT empty, you MUST use these as the 'drugs' field in JSON and
+  in all sub-questions, and you MUST ignore previously_active_drugs.
+- Step 3: If current_question_drugs IS empty and previously_active_drugs is not empty,
+  reuse previously_active_drugs as the 'drugs' field.
+
+- Apply the same steps for 'criteria' (disease area / drug class).
+
+ FAERS hints: {", ".join(sig.faers_terms)}
 AACT hints: {", ".join(sig.aact_terms)}
 PRICING hints: {", ".join(sig.pricing_terms)}
 
 Return JSON ONLY NO TRAILING CHARACTERS:
 {{
+  "drugs": List[str] or null,
+  "criteria": List[str] or null,
   "need_faers": <bool>,
   "need_aact": <bool>,
   "need_pricing": <bool>,
@@ -141,6 +182,8 @@ Return JSON ONLY NO TRAILING CHARACTERS:
     except Exception as e:
         print(e)
         data = {
+            "drugs": None,
+            "criteria": None,
             "need_faers": True,
             "need_aact": False,
             "need_pricing": False,
@@ -150,8 +193,11 @@ Return JSON ONLY NO TRAILING CHARACTERS:
             "pricing_subq": None
         }
 
-    
+    #print(data.get("drugs"))
+    #print(data.get("criteria"))
     return {
+        "drugs": data.get("drugs") if data.get("drugs") is not None else state.get("drugs"),
+        "criteria": data.get("criteria") if data.get("criteria") is not None else state.get("criteria"),
         "need_faers": bool(data.get("need_faers", False)),
         "need_aact": bool(data.get("need_aact", False)),
         "need_pricing": bool(data.get("need_pricing", False)),
@@ -215,6 +261,8 @@ def build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app):
         subq = state.get("faers_subq") or state["question"]
         want_chart = state.get("want_chart")
 
+        #print(state.get('drugs'))
+        #print(state.get('criteria'))
         if state.get("call_source") == "chart_toggle":
             s_in = {"question": subq, "df":state.get("faers_df"), "drugs":state.get("drugs"),
                     "want_chart":want_chart,"call_source":state.get("call_source")}
@@ -225,7 +273,7 @@ def build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app):
         s_in = {"question": subq, "sql": None, "error": None, "want_chart" : want_chart,
                 "attempts": 0, "summary": None, "df": None,"sql_explain":None,
                 "call_source":state.get("call_source"), "drugs":state.get('drugs'),
-                "classes":state.get('classes'),"diseases":state.get('diseases')}
+                "criteria":state.get('criteria')}
         out = faers_app.invoke(s_in,config = config)
             
         return {"faers_sql": out.get("sql"), "faers_df": out.get("df"), "faers_figure_json":out.get("figure_json"),
@@ -238,7 +286,6 @@ def build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app):
         
         subq = state.get("aact_subq") or state["question"]
         want_chart = state.get("want_chart")
-
         if state.get("call_source") == "chart_toggle":
             s_in = {"question": subq, "df":state.get("aact_df"),
                     "want_chart":want_chart,"call_source":state.get("call_source")}
@@ -247,7 +294,9 @@ def build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app):
             return {"aact_figure_json":out.get("figure_json")}
 
         s_in = {"question": subq, "sql": None, "error": None, "want_chart":want_chart,
-                "attempts": 0, "summary": None, "df": None,"call_source":state.get("call_source")}
+                "attempts": 0, "summary": None, "df": None,"call_source":state.get("call_source"),
+                "drugs":state.get('drugs'),
+                "criteria":state.get('criteria')}
         out = aact_app.invoke(s_in,config = config)
         return {"aact_sql": out.get("sql"), "aact_df": out.get("df"), "aact_figure_json":out.get("figure_json"),
                 "aact_error": out.get("error"), "aact_sql_explain":out.get("sql_explain")}
@@ -268,7 +317,9 @@ def build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app):
             return {"pricing_figure_json":out.get("figure_json")}
         
         s_in = {"question": subq, "sql": None, "error": None, "want_chart":want_chart,
-                "attempts": 0, "summary": None, "df": None,"sql_explain":None,"call_source":state.get("call_source")}
+                "attempts": 0, "summary": None, "df": None,"sql_explain":None,"call_source":state.get("call_source"),
+                "drugs":state.get('drugs'),
+                "criteria":state.get('criteria')}
         out = pricing_app.invoke(s_in,config = config)
         
         return {"pricing_sql": out.get("sql"), "pricing_df": out.get("df"), "pricing_figure_json":out.get("figure_json"),
@@ -471,7 +522,7 @@ Instructions:
     
     # ---------- Graph (parallel fan-out) ----------
     graph = StateGraph(OrchestratorState)
-    graph.add_node("criteria", criteria_node)
+    #graph.add_node("criteria", criteria_node)
     graph.add_node("router", router_node)
     graph.add_node("faers", call_faers)
     graph.add_node("aact", call_aact)
@@ -479,10 +530,11 @@ Instructions:
     graph.add_node("gather", gather_node)
     graph.add_node("summarize", summarize_node)
     graph.add_node("plot",plot_node)
-    graph.set_entry_point("criteria")
+    #graph.set_entry_point("criteria")
+    graph.set_entry_point("router")
 
     # Fan-out: run both agents concurrently; each checks its own flag
-    graph.add_edge("criteria","router")
+    #graph.add_edge("criteria","router")
     graph.add_edge("router", "faers")
     graph.add_edge("router", "aact")
     graph.add_edge("router", "pricing")
@@ -497,7 +549,7 @@ Instructions:
     graph.add_edge("summarize",END)
     #graph.add_edge("plot", END)
     graph_final = graph.compile(checkpointer=MemorySaver())
-    
+    #Image(graph_final.get_graph().draw_mermaid_png())
 
 
     return graph_final
