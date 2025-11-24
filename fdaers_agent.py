@@ -58,6 +58,7 @@ DISALLOWED = re.compile(r"\b(insert|update|delete|drop|alter|create|copy|grant|r
 #         return "Only WITH/SELECT queries are allowed."
 #     if DISALLOWED.search(s):
 #         return "Disallowed SQL keyword detected."
+
 #     # try:
 #     #     parsed = sqlglot.parse_one(s, read="postgres")
 #     # except Exception as e:

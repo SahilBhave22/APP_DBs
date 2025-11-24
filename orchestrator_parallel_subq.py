@@ -529,7 +529,7 @@ Instructions:
     graph.add_node("pricing", call_pricing)
     graph.add_node("gather", gather_node)
     graph.add_node("summarize", summarize_node)
-    graph.add_node("plot",plot_node)
+    #graph.add_node("plot",plot_node)
     #graph.set_entry_point("criteria")
     graph.set_entry_point("router")
 

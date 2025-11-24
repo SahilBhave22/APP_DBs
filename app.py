@@ -10,7 +10,7 @@ from pricing_agent import build_pricing_agent
 from orchestrator_parallel_subq import build_orchestrator_parallel_subq
 from IPython.display import Image
 import plotly.io as pio
-
+import langgraph
 from functools import lru_cache
 
 from google.oauth2 import service_account
@@ -22,6 +22,9 @@ from PIL import Image
 from io import BytesIO
 import base64
 import hashlib
+
+
+#from langgraph.config import mermaid_config_context
 
 if "thread_id" not in st.session_state:
     st.session_state.thread_id = str(uuid.uuid4())
@@ -141,7 +144,17 @@ q = st.text_area(
     height=140,
 )
 orch = get_apps()
+
+
+img_bytes = orch.get_graph(xray=1).draw_mermaid_png()
+
 cfg = {"configurable": {"thread_id": st.session_state.thread_id}}
+
+with st.sidebar:
+    with st.expander("Workflow graph"):
+        st.image(img_bytes, caption="Workflow graph", use_container_width=True)
+    st.divider()
+
 
 if want_summary != st.session_state.last_want_summary:
     st.session_state.last_want_summary = want_summary
@@ -155,7 +168,7 @@ if want_summary != st.session_state.last_want_summary:
                                 "call_source":"summary_toggle",
                                 "drugs": st.session_state.drugs,
                                 "criteria": st.session_state.criteria
-                                
+
                             }, config=cfg)
             st.session_state.current_result = out
         
