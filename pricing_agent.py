@@ -24,6 +24,7 @@ from utils.agent_nodes import entry_node,decide_after_entry,validate_sql_node,de
 from utils.states import AgentState
 from utils.prompts import SYSTEM_EXPLAIN,SYSTEM_REVISE
 import streamlit as st
+from functools import partial
 
 DISALLOWED = re.compile(r"\b(insert|update|delete|drop|alter|create|copy|grant|revoke|truncate|vacuum)\b", re.I)
 
@@ -253,7 +254,7 @@ SCHEMA CATALOG:
     graph.add_node("draft_sql", draft_sql_node)
     graph.add_node("validate_sql", validate_sql_node)
     graph.add_node("revise_sql", revise_sql_node)
-    graph.add_node("run_sql", run_sql_node)
+    graph.add_node("run_sql", partial(run_sql_node,db_key='pricing'))
     graph.add_node("explain_sql",explain_sql)
     graph.add_node("plot",plot_node)
     graph.add_node("done", done_node)

@@ -64,7 +64,7 @@ def decide_next_after_revise(state: AgentState) -> Literal["revise_sql", "run_sq
     return "run_sql"
 
 
-def run_sql_node(state: AgentState,safe_mode=True) -> AgentState:
+def run_sql_node(state: AgentState,db_key:str,safe_mode=True) -> AgentState:
         sql = (state["sql"] or "").strip()
         if not sql:
             state["error"] = "No SQL to execute."
@@ -82,7 +82,7 @@ def run_sql_node(state: AgentState,safe_mode=True) -> AgentState:
                 return state
 
         try:
-            state["df"] = df_to_split_payload(exec_sql(sql,db_key='aact'))
+            state["df"] = df_to_split_payload(exec_sql(sql,db_key=db_key))
             state["error"] = None
         except Exception as e:
             state["error"] = str(e)
@@ -91,18 +91,19 @@ def run_sql_node(state: AgentState,safe_mode=True) -> AgentState:
 def decide_next_after_run(state: AgentState) -> Literal["revise_sql", "done"]:
     # Up to 2 repairs; then try to run (or fail in run_sql if still invalid)
     if state["error"] and state["attempts"] < 4:
+        print("revised")
         return "revise_sql"
     return "explain"
 
-# def explain_sql(state: AgentState,catalog)-> AgentState:
-#     msgs = [
-#         SystemMessage(SYSTEM_EXPLAIN.format(question=state["question"], sql = state["sql"], 
-#                         schema_catalog = json.dumps(catalog)))
-#     ]
-#     explain = llm_mini.invoke(msgs).content.strip()
+def explain_sql(state: AgentState,catalog)-> AgentState:
+    msgs = [
+        SystemMessage(SYSTEM_EXPLAIN.format(question=state["question"], sql = state["sql"], 
+                        schema_catalog = json.dumps(catalog)))
+    ]
+    explain = llm_mini.invoke(msgs).content.strip()
     
-#     state["sql_explain"] = explain
-#     return state
+    state["sql_explain"] = explain
+    return state
 
 
 def done_node(state: AgentState) -> AgentState:

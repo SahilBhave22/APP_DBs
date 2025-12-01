@@ -26,6 +26,8 @@ DISALLOWED = re.compile(r"\b(insert|update|delete|drop|alter|create|copy|grant|r
 from utils.agent_nodes import entry_node,decide_after_entry,validate_sql_node,decide_next_after_validate,revise_sql_node,decide_next_after_revise,run_sql_node,decide_next_after_run,done_node
 from utils.prompts import SYSTEM_EXPLAIN, SYSTEM_REVISE
 import streamlit as st
+from functools import partial
+
 # ----------------------------
 # Agent builder
 # ----------------------------
@@ -306,7 +308,7 @@ Validator feedback:
     graph.add_node("draft_sql", draft_sql_node)
     graph.add_node("validate_sql", validate_sql_node)
     graph.add_node("revise_sql", revise_sql_node)
-    graph.add_node("run_sql", run_sql_node)
+    graph.add_node("run_sql", partial(run_sql_node,db_key='aact'))
     graph.add_node("explain_sql",explain_sql)
     graph.add_node("plot",plot_node)
     graph.add_node("done", done_node)

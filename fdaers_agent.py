@@ -26,6 +26,8 @@ DISALLOWED = re.compile(r"\b(insert|update|delete|drop|alter|create|copy|grant|r
 
 from utils.agent_nodes import entry_node,decide_after_entry,validate_sql_node,decide_next_after_validate,revise_sql_node,decide_next_after_revise,run_sql_node,decide_next_after_run,done_node
 from utils.states import AgentState
+
+from functools import partial
 # ----------------------------
 
 # Agent State
@@ -60,7 +62,7 @@ def build_fdaers_agent(
     column_inventory = make_column_inventory(catalog)
     join_hints = make_join_hints(catalog)
      
-    llm = ChatOpenAI(model=os.getenv("FAERS_LLM_MODEL1", "gpt-4o"), temperature=0,api_key=st.secrets.get("openai_api_key"))
+    llm = ChatOpenAI(model=os.getenv("FAERS_LLM_MODEL1", "gpt-4o"), temperature=0)
     llm_mini = ChatOpenAI(model=os.getenv("FAERS_LLM_MODEL2", "gpt-4o-mini"), temperature=0,api_key=st.secrets.get("openai_api_key"))
 
 
@@ -87,6 +89,7 @@ Rules:
 - Read-only: WITH/SELECT only; never DDL/DML or COPY.
 - STRICTLY Use only tables/columns that appear in the SCHEMA CATALOG below.
 - Deduplicate at the report level with COUNT(DISTINCT demo.primaryid) or COUNT(DISTINCT drug_cases.primaryid).
+- ALWAYS use table `drug_cases` to get relevant primary ids for a specific brand name 
 - Prefer joins:
   - demo.primaryid <-> drug_cases.primaryid
   - indi.(primaryid, indi_drug_seq) <-> drug_cases.(primaryid, drug_seq)
@@ -143,7 +146,7 @@ SCHEMA CATALOG:
     #         return "revise_sql"
     #     return "run_sql"
 
-    # def run_sql_node(state: AgentState) -> AgentState:
+    # def run_sql_node(state: AgentState,db_key:str) -> AgentState:
     #     sql = (state["sql"] or "").strip()
     #     if not sql:
     #         state["error"] = "No SQL to execute."
@@ -161,7 +164,7 @@ SCHEMA CATALOG:
     #             return state
 
     #     try:
-    #         state["df"] = df_to_split_payload(exec_sql(sql,db_key="fdaers"))
+    #         state["df"] = df_to_split_payload(exec_sql(sql,db_key=db_key))
     #     except Exception as e:
     #         state["error"] = str(e)
     #     return state
@@ -286,7 +289,7 @@ SCHEMA CATALOG:
     #graph.add_node("get_drugs",get_drugs)
     graph.add_node("validate_sql", validate_sql_node)
     graph.add_node("revise_sql", revise_sql_node)
-    graph.add_node("run_sql", run_sql_node)
+    graph.add_node("run_sql", partial(run_sql_node,db_key='fdaers'))
     graph.add_node("explain_sql",explain_sql)
     graph.add_node("plot",plot_node)
 
