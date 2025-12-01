@@ -68,8 +68,8 @@ def build_clinicaltrials_agent(
 #     STRICTLY limit your response to 150 words
 #     """
 
-    llm = ChatOpenAI(model=os.getenv("AACT_LLM_MODEL1", "gpt-4o"), temperature=0)
-    llm_mini = ChatOpenAI(model=os.getenv("AACT_LLM_MODEL2", "gpt-4o-mini"), temperature=0)
+    llm = ChatOpenAI(model=os.getenv("AACT_LLM_MODEL1", "gpt-4o"), temperature=0,api_key=os.environ["OPENAI_API_KEY"])
+    llm_mini = ChatOpenAI(model=os.getenv("AACT_LLM_MODEL2", "gpt-4o-mini"), temperature=0,api_key=os.environ["OPENAI_API_KEY"])
 
     # -------- Nodes --------
     # def entry_node(state: AgentState) -> AgentState:

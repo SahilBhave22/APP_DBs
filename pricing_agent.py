@@ -47,8 +47,8 @@ def build_pricing_agent(
     #join_hints = make_join_hints(catalog)
 
    
-    llm = ChatOpenAI(model=os.getenv("PRICING_LLM_MODEL1", "gpt-4o"), temperature=0)
-    llm_mini = ChatOpenAI(model=os.getenv("PRICING_LLM_MODEL2", "gpt-4o-mini"), temperature=0)
+    llm = ChatOpenAI(model=os.getenv("PRICING_LLM_MODEL1", "gpt-4o"), temperature=0,api_key=os.environ["OPENAI_API_KEY"])
+    llm_mini = ChatOpenAI(model=os.getenv("PRICING_LLM_MODEL2", "gpt-4o-mini"), temperature=0,api_key=os.environ["OPENAI_API_KEY"])
 
 
     # # -------- Nodes --------

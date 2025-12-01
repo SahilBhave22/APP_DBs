@@ -24,8 +24,8 @@ from utils.prompts import SYSTEM_EXPLAIN, SYSTEM_REVISE
 
 DISALLOWED = re.compile(r"\b(insert|update|delete|drop|alter|create|copy|grant|revoke|truncate|vacuum)\b", re.I)
 
-llm = ChatOpenAI(model=os.getenv("AACT_LLM_MODEL1", "gpt-4o"), temperature=0)
-llm_mini = ChatOpenAI(model=os.getenv("AACT_LLM_MODEL2", "gpt-4o-mini"), temperature=0)
+llm = ChatOpenAI(model="gpt-4o", temperature=0,api_key=os.environ["OPENAI_API_KEY"])
+llm_mini = ChatOpenAI(model = "gpt-4o-mini", temperature=0,api_key=os.environ["OPENAI_API_KEY"])
 
 def entry_node(state: AgentState) -> AgentState:
     return {}
