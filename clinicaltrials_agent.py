@@ -25,6 +25,7 @@ DISALLOWED = re.compile(r"\b(insert|update|delete|drop|alter|create|copy|grant|r
 
 from utils.agent_nodes import entry_node,decide_after_entry,validate_sql_node,decide_next_after_validate,revise_sql_node,decide_next_after_revise,run_sql_node,decide_next_after_run,done_node
 from utils.prompts import SYSTEM_EXPLAIN, SYSTEM_REVISE
+import streamlit as st
 # ----------------------------
 # Agent builder
 # ----------------------------
@@ -68,8 +69,8 @@ def build_clinicaltrials_agent(
 #     STRICTLY limit your response to 150 words
 #     """
 
-    llm = ChatOpenAI(model=os.getenv("AACT_LLM_MODEL1", "gpt-4o"), temperature=0,api_key=os.environ["OPENAI_API_KEY"])
-    llm_mini = ChatOpenAI(model=os.getenv("AACT_LLM_MODEL2", "gpt-4o-mini"), temperature=0,api_key=os.environ["OPENAI_API_KEY"])
+    llm = ChatOpenAI(model=os.getenv("AACT_LLM_MODEL1", "gpt-4o"), temperature=0,api_key=st.secrets.get("openai_api_key"))
+    llm_mini = ChatOpenAI(model=os.getenv("AACT_LLM_MODEL2", "gpt-4o-mini"), temperature=0,api_key=st.secrets.get("openai_api_key"))
 
     # -------- Nodes --------
     # def entry_node(state: AgentState) -> AgentState:

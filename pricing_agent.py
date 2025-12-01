@@ -23,7 +23,7 @@ from utils.helpers import split_payload_to_df,make_column_inventory,make_join_hi
 from utils.agent_nodes import entry_node,decide_after_entry,validate_sql_node,decide_next_after_validate,revise_sql_node,decide_next_after_revise,run_sql_node,decide_next_after_run,done_node
 from utils.states import AgentState
 from utils.prompts import SYSTEM_EXPLAIN,SYSTEM_REVISE
-
+import streamlit as st
 
 DISALLOWED = re.compile(r"\b(insert|update|delete|drop|alter|create|copy|grant|revoke|truncate|vacuum)\b", re.I)
 
@@ -47,8 +47,8 @@ def build_pricing_agent(
     #join_hints = make_join_hints(catalog)
 
    
-    llm = ChatOpenAI(model=os.getenv("PRICING_LLM_MODEL1", "gpt-4o"), temperature=0,api_key=os.environ["OPENAI_API_KEY"])
-    llm_mini = ChatOpenAI(model=os.getenv("PRICING_LLM_MODEL2", "gpt-4o-mini"), temperature=0,api_key=os.environ["OPENAI_API_KEY"])
+    llm = ChatOpenAI(model=os.getenv("PRICING_LLM_MODEL1", "gpt-4o"), temperature=0,api_key=st.secrets.get("openai_api_key"))
+    llm_mini = ChatOpenAI(model=os.getenv("PRICING_LLM_MODEL2", "gpt-4o-mini"), temperature=0,api_key=st.secrets.get("openai_api_key"))
 
 
     # # -------- Nodes --------

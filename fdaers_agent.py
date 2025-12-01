@@ -11,7 +11,7 @@ from langchain_openai import ChatOpenAI
 from langchain.schema import SystemMessage, HumanMessage
 from langgraph.graph import StateGraph, END
 import sqlglot
-
+import streamlit as st
 from langgraph.checkpoint.memory import MemorySaver
 from utils.db_conn import exec_sql
 from utils.helpers import df_to_split_payload
@@ -60,8 +60,8 @@ def build_fdaers_agent(
     column_inventory = make_column_inventory(catalog)
     join_hints = make_join_hints(catalog)
      
-    llm = ChatOpenAI(model=os.getenv("FAERS_LLM_MODEL1", "gpt-4o"), temperature=0,api_key=os.environ["OPENAI_API_KEY"] )
-    llm_mini = ChatOpenAI(model=os.getenv("FAERS_LLM_MODEL2", "gpt-4o-mini"), temperature=0,api_key=os.environ["OPENAI_API_KEY"])
+    llm = ChatOpenAI(model=os.getenv("FAERS_LLM_MODEL1", "gpt-4o"), temperature=0,api_key=st.secrets.get("openai_api_key"))
+    llm_mini = ChatOpenAI(model=os.getenv("FAERS_LLM_MODEL2", "gpt-4o-mini"), temperature=0,api_key=st.secrets.get("openai_api_key"))
 
 
     # -------- Nodes --------

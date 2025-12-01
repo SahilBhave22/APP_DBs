@@ -20,12 +20,12 @@ import types
 from utils.helpers import split_payload_to_df,make_column_inventory,make_join_hints,clean_sql,validate_sql
 from utils.states import AgentState
 from utils.prompts import SYSTEM_EXPLAIN, SYSTEM_REVISE
-
+import streamlit as st
 
 DISALLOWED = re.compile(r"\b(insert|update|delete|drop|alter|create|copy|grant|revoke|truncate|vacuum)\b", re.I)
 
-llm = ChatOpenAI(model="gpt-4o", temperature=0,api_key=os.environ["OPENAI_API_KEY"])
-llm_mini = ChatOpenAI(model = "gpt-4o-mini", temperature=0,api_key=os.environ["OPENAI_API_KEY"])
+llm = ChatOpenAI(model="gpt-4o", temperature=0,api_key=st.secrets.get("openai_api_key"))
+llm_mini = ChatOpenAI(model = "gpt-4o-mini", temperature=0,api_key=st.secrets.get("openai_api_key"))
 
 def entry_node(state: AgentState) -> AgentState:
     return {}
