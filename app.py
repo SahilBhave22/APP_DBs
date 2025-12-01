@@ -55,24 +55,24 @@ USERS = {
     st.secrets['login_creds']['username1']: hash_password(st.secrets['login_creds']['password1'])
 }
 
-# def login():
-#     st.title("Apperture Dashboard Login")
+def login():
+    st.title("Apperture Dashboard Login")
 
-#     username = st.text_input("Username")
-#     password = st.text_input("Password", type="password")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
 
-#     if st.button("Login"):
-#         if username in USERS and USERS[username] == hash_password(password):
-#             st.session_state["logged_in"] = True
-#             st.session_state["user"] = username
-#             st.rerun()
-#         else:
-#             st.error("❌ Invalid username or password.")
+    if st.button("Login"):
+        if username in USERS and USERS[username] == hash_password(password):
+            st.session_state["logged_in"] = True
+            st.session_state["user"] = username
+            st.rerun()
+        else:
+            st.error("❌ Invalid username or password.")
 
 
-# if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
-#     login()
-#     st.stop()  # Prevent the rest of the app from showing
+if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
+    login()
+    st.stop()  # Prevent the rest of the app from showing
 
 
 def encode_image(path):
@@ -113,16 +113,16 @@ def load_json(key: str, fallback: str):
         return json.load(f)
 
 @st.cache_resource
-def get_apps():
+def get_apps(default_limit:int):
 
     faers_catalog = load_json("faers_schema_catalog", "faers_schema_catalog.json")
     aact_catalog  = load_json("clinicaltrials_schema_catalog",  "aact_schema_catalog.json")
     pricing_catalog  = load_json("pricing_schema_catalog",  "pricing_schema_catalog.json")
     aact_sample_queries = load_json("clinicaltrials_sample_queries",  "clinicaltrials_sample_queries.json")
 
-    faers_app = build_fdaers_agent(faers_catalog)
-    aact_app  = build_clinicaltrials_agent(aact_catalog,  aact_sample_queries)
-    pricing_app  = build_pricing_agent(pricing_catalog,  safe_mode=safe_mode)
+    faers_app = build_fdaers_agent(faers_catalog,default_limit=default_limit)
+    aact_app  = build_clinicaltrials_agent(aact_catalog,  aact_sample_queries,default_limit=default_limit)
+    pricing_app  = build_pricing_agent(pricing_catalog,  default_limit=default_limit,safe_mode=safe_mode)
     orch_app  = build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app)
     
     return orch_app
@@ -143,7 +143,7 @@ q = st.text_area(
     placeholder="Example: Compare top 10 conditions across fdaers and clinical trials for Bavencio",
     height=140,
 )
-orch = get_apps()
+orch = get_apps(default_limit=default_limit)
 
 
 img_bytes = orch.get_graph(xray=1).draw_mermaid_png()
@@ -224,6 +224,16 @@ if out:
                 del st.session_state.current_result
             st.rerun()
         
+        st.divider()
+        if out.get("drugs"):
+            df = split_payload_to_df(out["drugs"])
+            with st.expander("Available Drugs"):
+                st.caption(f"{len(df):,} rows · {df.shape[1]} cols")
+                st.dataframe(df.head(default_limit), use_container_width=True, hide_index=True)
+                st.download_button("Download Drugs CSV", df.to_csv(index=False).encode("utf-8"), "drugs_results.csv", use_container_width=True)
+
+        st.divider()
+
         st.subheader("FDAERS")
         if out.get("faers_df"):
             fdf = split_payload_to_df(out["faers_df"])

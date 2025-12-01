@@ -50,10 +50,24 @@ def clean_sql(sql: str) -> str:
 
 def validate_sql(sql: str) -> Optional[str]:
     DISALLOWED = re.compile(r"\b(insert|update|delete|drop|alter|create|copy|grant|revoke|truncate|vacuum)\b", re.I)
+    
+    PARAM_TOKENS = re.compile(
+    r"(?<!:):[a-zA-Z_][a-zA-Z0-9_]*"  # :param but NOT ::type
+    r"|@[a-zA-Z_][a-zA-Z0-9_]*"       # @param
+    r"|\$\d+"                         # $1, $2...
+    r"|\?",                           # ? param (if you want to forbid it)
+    re.MULTILINE,
+    )
+
+    
     s = (sql or "").strip()
     if not re.match(r"^\s*(with|select)\b", s, flags=re.I | re.S):
         return "Only WITH/SELECT queries are allowed."
+    
     if DISALLOWED.search(s):
         return "Disallowed SQL keyword detected."
+    
+    if PARAM_TOKENS.search(s):
+        return "Parameters are not allowed. Inline all literal values (no :param, @param, $1, ?)."
 
     return None

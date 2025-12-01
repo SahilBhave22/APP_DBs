@@ -23,6 +23,7 @@ DBS = {
     "aact":    st.secrets["dbs"]["db_name_aact"],
     "fdaers":  st.secrets["dbs"]["db_name_fdaers"],
     "pricing": st.secrets["dbs"]["db_name_pricing"],
+    "drugs": st.secrets["dbs"]["db_name_drugs"]
 }
 
 # One shared connector
@@ -51,7 +52,7 @@ def get_engine(db_key: str) -> sqlalchemy.Engine:
         pool_pre_ping=True,
         pool_size=5,
         max_overflow=2,
-        pool_timeout=30,
+        pool_timeout=30
     )
 
 def exec_sql(sql: str, db_key: str, params: dict | None = None) -> pd.DataFrame:

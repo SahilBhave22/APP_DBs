@@ -19,100 +19,12 @@ import plotly.express as px
 import plotly.io as pio
 import types
 from utils.helpers import split_payload_to_df,make_column_inventory,make_join_hints,clean_sql,validate_sql
-# ----------------------------
-# Helpers & validation
-# ----------------------------
-# def make_column_inventory(catalog: Dict[str, Any]) -> str:
-#     lines = []
-#     for t in catalog.get("tables", []):
-#         cols = ", ".join([c["name"] for c in t.get("columns", [])])
-#         lines.append(f"- {t['name']}: {cols}")
-#     return "\n".join(lines) if lines else "None"
-
-# def make_join_hints(catalog: Dict[str, Any]) -> str:
-#     rels = catalog.get("relationships", [])
-#     if not rels:
-#         return "None"
-#     return "\n".join([
-#         f"- {r['from_table']}.{','.join(r['from_columns'])} ↔ {r['to_table']}.{','.join(r['to_columns'])} [{r.get('type','')}]"
-#         for r in rels
-#     ])
-
-# def clean_sql(sql: str) -> str:
-#     """Strip ```sql fences and trim."""
-#     if not sql:
-#         return ""
-#     s = sql.strip()
-#     s = re.sub(r"^```[a-zA-Z]*\s*", "", s)  # remove opening ``` / ```sql
-#     s = re.sub(r"\s*```$", "", s)           # remove trailing ```
-#     s = re.sub(r"::text","::varchar",s)
-#     return s.strip()
+from utils.states import AgentState
 
 DISALLOWED = re.compile(r"\b(insert|update|delete|drop|alter|create|copy|grant|revoke|truncate|vacuum)\b", re.I)
 
-# def validate_sql(sql: str) -> Optional[str]:
-#     s = (sql or "").strip()
-#     if not re.match(r"^\s*(with|select)\b", s, flags=re.I | re.S):
-#         return "Only WITH/SELECT queries are allowed."
-#     if DISALLOWED.search(s):
-#         return "Disallowed SQL keyword detected."
-#     # try:
-#     #     parsed = sqlglot.parse_one(s, read="postgres")
-#     # except Exception as e:
-#     #     return f"SQL parse error: {e}"
-#     # if parsed is None:
-#     #     return "Empty or unparsable SQL."
-#     return None
-
-
-# ----------------------------
-
-# Agent State
-# ----------------------------
-class AgentState(TypedDict):
-    question: str
-    sql: Optional[str]
-    error: Optional[str]
-    attempts: int
-    summary: Optional[str]
-    df:  Optional[Dict[str, Any]]
-    sql_explain : Optional[str]
-    want_chart : bool
-    figure_json: Optional[str]
-    call_source: Optional[str]
-    drugs: Optional[List[str]]
-    criteria : Optional[List[str]]
-
-
-# ----------------------------
-# DB helpers
-# ----------------------------
-
-# INSTANCE = "aesthetic-guild-471115-a9:us-central1:app-db"
-# DB_USER, DB_PASS, DB_NAME = "postgres", "Scb#12345678", "aact"
-
-# connector = Connector()
-# def getconn():
-#     return connector.connect(
-#         INSTANCE, driver="pg8000",
-#         user=DB_USER, password=DB_PASS, db=DB_NAME,
-#         ip_type=IPTypes.PUBLIC,   # use PRIVATE if instance is private-only
-#         timeout=60,
-#     )
-
-# @lru_cache(maxsize=4)
-# def get_engine_cached(clinicaltrials_db_url: str):
-#     # return create_engine("postgresql+pg8000://", creator=getconn,
-#     #                    pool_pre_ping=True, pool_recycle=1800, pool_timeout=60)
-#     return create_engine(clinicaltrials_db_url, pool_pre_ping=True)
-
-# def exec_sql(clinicaltrials_db_url: str, sql: str) -> pd.DataFrame:
-#     eng = get_engine_cached(clinicaltrials_db_url)
-#     with eng.connect() as conn:
-#         return pd.read_sql(text(sql), conn)
-
-
-
+from utils.agent_nodes import entry_node,decide_after_entry,validate_sql_node,decide_next_after_validate,revise_sql_node,decide_next_after_revise,run_sql_node,decide_next_after_run,done_node
+from utils.prompts import SYSTEM_EXPLAIN, SYSTEM_REVISE
 # ----------------------------
 # Agent builder
 # ----------------------------
@@ -129,45 +41,45 @@ def build_clinicaltrials_agent(
       draft_sql -> validate_sql -> (revise_sql)* -> run_sql -> done
     Returns a LangGraph app; final state has keys: sql, df, error.
     """
-    
+    print(default_limit)
     column_inventory = make_column_inventory(catalog)
     join_hints = make_join_hints(catalog)
 
     
 
-    SYSTEM_REVISE = f"""You are repairing a PostgreSQL query to satisfy validator feedback.
+#     SYSTEM_REVISE = f"""You are repairing a PostgreSQL query to satisfy validator feedback.
 
-- Keep WITH/SELECT only (no DDL/DML).
-- Always check if all types of id are cast to VARCHAR.
-- Preserve user intent; keep :snake_case parameters; end with ONE SQL query only.
+# - Keep WITH/SELECT only (no DDL/DML).
+# - Always check if all types of id are cast to VARCHAR.
+# - Preserve user intent; keep :snake_case parameters; end with ONE SQL query only.
 
-Validator feedback:
-{{feedback}}
-"""
-    SYSTEM_EXPLAIN = f""" You are a SQL expert that is analysing a SQL query based on a question.
-    Here is the question asked: {{question}}
-    Here is the SQL query : {{sql}}
-    Here is the database info: {{schema_catalog}}
+# Validator feedback:
+# {{feedback}}
+# """
+#     SYSTEM_EXPLAIN = f""" You are a SQL expert that is analysing a SQL query based on a question.
+#     Here is the question asked: {{question}}
+#     Here is the SQL query : {{sql}}
+#     Here is the database info: {{schema_catalog}}
 
-    Provide a clear explanation of the query that is suitable for a semi-technical audience.
-    Explain in detail which tables are used, how they are joined and how the counts are taken.
-    Also explain what the tables mean and why these particular tables were used.
+#     Provide a clear explanation of the query that is suitable for a semi-technical audience.
+#     Explain in detail which tables are used, how they are joined and how the counts are taken.
+#     Also explain what the tables mean and why these particular tables were used.
 
-    STRICTLY limit your response to 150 words
-    """
+#     STRICTLY limit your response to 150 words
+#     """
 
     llm = ChatOpenAI(model=os.getenv("AACT_LLM_MODEL1", "gpt-4o"), temperature=0)
     llm_mini = ChatOpenAI(model=os.getenv("AACT_LLM_MODEL2", "gpt-4o-mini"), temperature=0)
 
     # -------- Nodes --------
-    def entry_node(state: AgentState) -> AgentState:
-        return {}
+    # def entry_node(state: AgentState) -> AgentState:
+    #     return {}
     
-    def decide_after_entry(state: AgentState) -> Literal["draft_sql", "plot"]:
-        # Up to 2 repairs; then try to run (or fail in run_sql if still invalid)
-        if state["call_source"] == "chart_toggle":
-            return "plot"
-        return "draft_sql"
+    # def decide_after_entry(state: AgentState) -> Literal["draft_sql", "plot"]:
+    #     # Up to 2 repairs; then try to run (or fail in run_sql if still invalid)
+    #     if state["call_source"] == "chart_toggle":
+    #         return "plot"
+    #     return "draft_sql"
     
     def draft_sql_node(state: AgentState) -> AgentState:
         print(state.get('drugs'))
@@ -176,11 +88,12 @@ Validator feedback:
 Rules:
 - Output ONE SQL query only (no commentary, no code fences).
 - Read-only: WITH/SELECT only; never DDL/DML or COPY.
-- If {state['drugs']} is not none, ALWAYS GET DATA ONLY FOR THESE DRUGS.
-- If{state['criteria']} is not none, ALWAYS USE IT TO GET RELEVANT DRUGS
 - ALWAYS CHECK data types of columns BEFORE joining tables.
 - ALWAYS CHECK which columns are asked by the use and return all of them.
 - ALWAYS CAST ALL types of id to varchar.
+- Always inline all literal values directly in the SQL.
+- Never use parameters or placeholders of any kind (no :param, @param, ?, $1, etc.).
+- If the question lists multiple drug names, inline them in the SQL using an IN 
 - ALWAYS USE public.drug_trials TABLE TO GET TRIAL IDS FOR A PARTICULAR DRUG. 
 - DO NOT USE PRO related tables unless user explicitly mentions.
 - Guidelines for endpoint/ outcome related queries
@@ -199,8 +112,6 @@ Rules:
 - Use only tables/columns that appear in the SCHEMA CATALOG below.
 - ALWAYS take counts of unique nct ids.
 - Case-insensitive filters: use ILIKE for text.
-- TO get drugs associated with a drug class, ALWAYS USE public.drug_classes TABLE and use ILIKE for filters.
-- For all drugs within a class, ALWAYS give data segregated by brand name.
 Guidance for comparative queries
     - IF comparsion among 2 drugs is asked, make sure to add a stratification by the brand_name too.
     - Always compute per-group aggregates and counts should always be of nct_id.
@@ -221,8 +132,6 @@ SAMPLE QUERIES for guidance:
 
 - DO NOT CHANGE SAMPLE QUERIES, USE IT AS IT IS.
 
-- Preserve user intent; keep :snake_case parameters; end with ONE SQL query only.
-
 Validator feedback:
 {{feedback}}
 
@@ -232,60 +141,60 @@ Validator feedback:
         state["sql"] = clean_sql(raw_sql)
         return state
 
-    def validate_sql_node(state: AgentState) -> AgentState:
-        state["sql"] = clean_sql(state["sql"])
-        state["error"] = validate_sql(state["sql"] or "")
-        return state
+    # def validate_sql_node(state: AgentState) -> AgentState:
+    #     state["sql"] = clean_sql(state["sql"])
+    #     state["error"] = validate_sql(state["sql"] or "")
+    #     return state
 
-    def decide_next_after_validate(state: AgentState) -> Literal["revise_sql", "run_sql"]:
-        return "revise_sql" if state["error"] else "run_sql"
+    # def decide_next_after_validate(state: AgentState) -> Literal["revise_sql", "run_sql"]:
+    #     return "revise_sql" if state["error"] else "run_sql"
 
-    def revise_sql_node(state: AgentState) -> AgentState:
-        state["attempts"] += 1
-        msgs = [
-            SystemMessage(SYSTEM_REVISE.format(feedback=state["error"])),
-            HumanMessage(state["sql"] or "")
-        ]
-        raw_sql = llm.invoke(msgs).content.strip()
-        state["sql"] = clean_sql(raw_sql)
-        state["error"] = validate_sql(state["sql"] or "")
-        return state
+    # def revise_sql_node(state: AgentState) -> AgentState:
+    #     state["attempts"] += 1
+    #     msgs = [
+    #         SystemMessage(SYSTEM_REVISE.format(feedback=state["error"])),
+    #         HumanMessage(state["sql"] or "")
+    #     ]
+    #     raw_sql = llm.invoke(msgs).content.strip()
+    #     state["sql"] = clean_sql(raw_sql)
+    #     state["error"] = validate_sql(state["sql"] or "")
+    #     return state
 
-    def decide_next_after_revise(state: AgentState) -> Literal["revise_sql", "run_sql"]:
-        # Up to 2 repairs; then try to run (or fail in run_sql if still invalid)
-        if state["error"] and state["attempts"] < 2:
-            return "revise_sql"
-        return "run_sql"
+    # def decide_next_after_revise(state: AgentState) -> Literal["revise_sql", "run_sql"]:
+    #     # Up to 2 repairs; then try to run (or fail in run_sql if still invalid)
+    #     if state["error"] and state["attempts"] < 2:
+    #         return "revise_sql"
+    #     return "run_sql"
 
-    def run_sql_node(state: AgentState) -> AgentState:
-        sql = (state["sql"] or "").strip()
-        if not sql:
-            state["error"] = "No SQL to execute."
-            return state
+    # def run_sql_node(state: AgentState) -> AgentState:
+    #     sql = (state["sql"] or "").strip()
+    #     if not sql:
+    #         state["error"] = "No SQL to execute."
+    #         return state
 
-        # Enforce validator in safe_mode; otherwise still block obvious DDL/DML
-        if safe_mode:
-            v = validate_sql(sql)
-            if v:
-                state["error"] = v
-                return state
-        else:
-            if DISALLOWED.search(sql):
-                state["error"] = "Refusing to run non-SELECT/DDL statements."
-                return state
+    #     # Enforce validator in safe_mode; otherwise still block obvious DDL/DML
+    #     if safe_mode:
+    #         v = validate_sql(sql)
+    #         if v:
+    #             state["error"] = v
+    #             return state
+    #     else:
+    #         if DISALLOWED.search(sql):
+    #             state["error"] = "Refusing to run non-SELECT/DDL statements."
+    #             return state
 
-        try:
-            state["df"] = df_to_split_payload(exec_sql(sql,db_key='aact'))
-            state["error"] = None
-        except Exception as e:
-            state["error"] = str(e)
-        return state
+    #     try:
+    #         state["df"] = df_to_split_payload(exec_sql(sql,db_key='aact'))
+    #         state["error"] = None
+    #     except Exception as e:
+    #         state["error"] = str(e)
+    #     return state
     
-    def decide_next_after_run(state: AgentState) -> Literal["revise_sql", "done"]:
-        # Up to 2 repairs; then try to run (or fail in run_sql if still invalid)
-        if state["error"] and state["attempts"] < 2:
-            return "revise_sql"
-        return "explain"
+    # def decide_next_after_run(state: AgentState) -> Literal["revise_sql", "done"]:
+    #     # Up to 2 repairs; then try to run (or fail in run_sql if still invalid)
+    #     if state["error"] and state["attempts"] < 4:
+    #         return "revise_sql"
+    #     return "explain"
     
     def explain_sql(state: AgentState)-> AgentState:
         msgs = [
@@ -385,14 +294,10 @@ Validator feedback:
             state["chart_error"]= f"Chart generation failed: {e}"
             return state
 
-    def done_node(state: AgentState) -> AgentState:
-        # Nothing to do; terminal summarization could go here if desired.
-        return state
 
-
-    def done_node(state: AgentState) -> AgentState:
-        # Nothing to do; terminal summarization could go here if desired.
-        return state
+    # def done_node(state: AgentState) -> AgentState:
+    #     # Nothing to do; terminal summarization could go here if desired.
+    #     return state
 
     # -------- Graph wiring --------
     graph = StateGraph(AgentState)

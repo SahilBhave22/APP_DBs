@@ -1,6 +1,6 @@
 # orchestrator_parallel_subq.py
 from __future__ import annotations
-from typing import TypedDict, Optional, Dict, Any,List
+from typing import TypedDict, Optional, Dict, Any,List,Literal
 from dataclasses import dataclass
 import json
 import pandas as pd
@@ -10,63 +10,15 @@ from langchain_openai import ChatOpenAI
 
 from langsmith.run_helpers import traceable
 #from langchain_core.runnables import RunnableConfig
-import plotly.express as px
-import plotly.io as pio
-import types
 from langgraph.checkpoint.memory import MemorySaver
 
-from IPython.display import Image
+#from IPython.display import Image
 import re
-from utils.helpers import split_payload_to_df
-# ---------- Orchestrator state ----------
-class OrchestratorState(TypedDict, total=False):
-    question: str
+from utils.helpers import split_payload_to_df, df_to_split_payload
+from utils.db_conn import exec_sql
 
-    drugs : Optional[List[str]]
-    #classes : Optional[List[str]]
-    criteria : Optional[List[str]]
-    want_summary:bool
-    want_chart : bool
-    call_source: Optional[str]
-    # Router outputs (fan-out flags + sub-questions)
-    need_faers: bool
-    need_aact: bool
-    need_pricing : bool
-    router_rationale: str
-    faers_subq: Optional[str]
-    aact_subq: Optional[str]
-    pricing_subq: Optional[str]
-
-
-    # FAERS artifacts
-    faers_sql: Optional[str]
-    faers_df: Optional[Dict[str, Any]] 
-    faers_error: Optional[str]
-
-    # AACT artifacts
-    aact_sql: Optional[str]
-    aact_df: Optional[Dict[str, Any]] 
-    aact_error: Optional[str]
-
-    # PRICING artifacts
-    pricing_sql: Optional[str]
-    pricing_df: Optional[Dict[str, Any]] 
-    pricing_error: Optional[str]
-
-    faers_figure_json: Optional[str]
-    aact_figure_json: Optional[str]
-    pricing_figure_json: Optional[str]
-
-    faers_chart_error : Optional[str]
-    aact_chart_error : Optional[str]
-    pricing_chart_error : Optional[str]
-    chart_source: str
-
-    faers_sql_explain : Optional[str]
-    aact_sql_explain : Optional[str]
-    pricing_sql_explain : Optional[str]
-    # Final
-    final_answer: Optional[str]
+from utils.prompts import DRUG_DETECTOR_SYSTEM,FETCH_RELEVANT_DRUGS_SYSTEM, ROUTER_SYSTEM
+from utils.states import OrchestratorState
 
 # ---------- Router with per-DB sub-questions ----------
 @dataclass
@@ -95,6 +47,117 @@ def default_signals() -> Signals:
         ],
     )
 
+def drug_detector(state: OrchestratorState) -> OrchestratorState:
+    if(state.get('call_source')!= 'database'):
+        return state
+    
+    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+
+    prev_drugs = state.get("drugs")
+
+    DRUG_DETECTOR_USER = f"""
+    previously_active_drugs:
+    {prev_drugs}
+
+    Current user question:
+    {state.get("question")}
+
+    Follow the system instructions and return STRICT JSON only.
+"""
+    
+    resp = llm.invoke([
+        {"role": "system", "content": DRUG_DETECTOR_SYSTEM},
+        {"role": "user", "content": DRUG_DETECTOR_USER},
+    ])
+
+    out_raw = re.sub(r"^```[a-zA-Z]*\n?|```$", "", resp.content).strip()
+    out = json.loads(out_raw)
+    #out = json.loads(resp.content)
+    # print("enter ehllo")
+    # print(type(out.get('drugs')))
+    # print(out.get('criteria_phrases'))
+    # print(out.get('rationale'))
+    # print("enter exit")
+    
+    state['drugs'] = df_to_split_payload(pd.DataFrame({'Brand Name': out.get('drugs')}))
+    state['criteria'] = out.get('criteria_phrases')
+    return state
+
+def decide_next_after_entry(state: OrchestratorState) -> Literal["router", "get_relevant_drugs"]:
+        print(len(split_payload_to_df(state['drugs'])))
+        return "router" if len(split_payload_to_df(state['drugs']))>0 else "get_relevant_drugs"
+
+
+def get_relevant_drugs(state: OrchestratorState) -> OrchestratorState:
+    
+    with open("catalogs/drugs_schema_catalog.json", "r", encoding="utf-8") as f:
+        drugs_json =  json.load(f)
+    
+    #print(drugs_json)
+    FETCH_RELEVANT_DRUGS_USER = f"""
+drugs_json: {drugs_json}
+
+criteria_phrases:
+{state.get('criteria')}
+
+Return STRICT JSON only.
+"""
+    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+    resp = llm.invoke([
+            {"role": "system", "content": FETCH_RELEVANT_DRUGS_SYSTEM},
+            {"role": "user", "content": FETCH_RELEVANT_DRUGS_USER},
+        ])
+
+    #print(resp.content)
+    out_raw = re.sub(r"^```[a-zA-Z]*\n?|```$", "", resp.content).strip()
+    out = json.loads(out_raw)
+    
+    # print("Enter")
+    # print(out.get('selected_drug_classes'))
+    # print(out.get('selected_drug_indications'))
+    # print(out.get('rationale'))
+    # print("Exit")
+
+    drugs_query = """
+    select distinct dr.brand_name 
+    from drugs dr 
+    left join drug_classes dc
+    on dr.brand_name = dc.brand_name
+    left join drug_indications di
+    on dr.brand_name = di.brand_name
+    where 1=1
+    """
+
+    where_clauses = []
+    params = {}
+
+    
+    # normalize to lowercase to match LOWER() in SQL
+    selected_classes = [c.lower() for c in out.get("selected_drug_classes")]
+    selected_indications = [i.lower() for i in out.get("selected_drug_indications")]
+
+
+    if len(selected_classes)>0:
+        where_clauses.append(
+            "AND LOWER(dc.atc_class_name) = ANY(:selected_classes)"
+        )
+        params["selected_classes"] = selected_classes
+
+    if len(selected_indications)>0:
+        where_clauses.append(
+            "AND LOWER(di.indication_name) = ANY(:selected_indications)"
+        )
+        params["selected_indications"] = selected_indications
+
+    
+    drugs_query += "\n" + "\n".join(where_clauses)
+
+    
+    drugs_list = exec_sql(drugs_query,db_key="drugs",params = params)
+    print(drugs_list)
+    state["drugs"] = df_to_split_payload(drugs_list)
+
+    return state
 
 def router_node(state: OrchestratorState) -> OrchestratorState:
 
@@ -105,67 +168,23 @@ def router_node(state: OrchestratorState) -> OrchestratorState:
             "need_pricing": state.get('pricing_df') is not None
         }
     
-    llm = ChatOpenAI(model="gpt-4o", temperature=0)
+    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
     sig = default_signals()
 
-    system = (
-        "You are a routing planner for a multi-DB QA system.\n"
-        "Decide which databases are needed and craft concise, natural language sub-questions for each.\n"
-        "Output STRICT JSON with keys: drugs(List[str]),criteria(List[str]),need_faers (bool), need_aact (bool), "
-        "router_rationale (str), faers_subq (str or null), aact_subq (str or null).\n"
-        "DO NOT GIVE ANY TRAILING OR LEADING CHARACTERS AROUND THE JSON"
-        "Guidance:\n"
-        "- Check wether user mentions drug names or other criteria."
-        "- 'drugs' → explicit brand or generic drug names . If explicit brand names are not mentioned, keep this NULL. \n"
-        "- 'criteria' → disease area or drug class. If the user does not mention any, keep this as NULL."
-        "- FAERS for spontaneous safety. Take aggregates across primary ids. \n"
-        "- AACT for trials .Take aggregates across nct ids.\n"
-        "- PRICING for drug pricing information. \n "
-        "- If the user intent implies both, set both booleans true.\n"
-       
-        "Conversation context rules:\n"
-    "- You will be given previously active drugs and criteria, and the current user question.\n"
-    "- FIRST, read ONLY the current user question and identify any explicit drug names mentioned there.\n"
-    "  Call these current_question_drugs.\n"
-    "- If current_question_drugs is NOT EMPTY, you MUST:\n"
-    "    * set the JSON 'drugs' field = current_question_drugs, and\n"
-    "    * IGNORE previously_active_drugs for the 'drugs' field and for sub-questions.\n"
-    "- ONLY IF current_question_drugs is EMPTY and previously_active_drugs is not empty,\n"
-    "  reuse previously_active_drugs in the 'drugs' field and in all sub-questions.\n"
-    "- Apply the same logic for 'criteria' using current_question_criteria vs previously_active_criteria.\n"
-    "\n"
-    "Sub-question rules:\n"
-    "- Sub-questions should be concise and in natural language.\n"
-    "- They should reflect the EFFECTIVE drugs/criteria (either new or carried over from context).\n"
-    "- Do NOT introduce any new drugs or criteria that are not in the current question or the provided context.\n"
-    )
-
+    
     user = f"""
-Previously active filters:
-- previously_active_drugs: {state.get('drugs')}
-- previously_active_criteria: {state.get('criteria')}
+Resolved drugs for this turn (FINAL, DO NOT OVERRIDE):
+{state.get('drugs')}
 
 Current user question:
 {state['question']}
 
-IMPORTANT LOGIC FOR DRUGS AND CRITERIA:
-- Step 1: Look at ONLY the current user question and extract any explicit brand or generic drug names.
-  Call them current_question_drugs.
-- Step 2: If current_question_drugs is NOT empty, you MUST use these as the 'drugs' field in JSON and
-  in all sub-questions, and you MUST ignore previously_active_drugs.
-- Step 3: If current_question_drugs IS empty and previously_active_drugs is not empty,
-  reuse previously_active_drugs as the 'drugs' field.
-
-- Apply the same steps for 'criteria' (disease area / drug class).
-
- FAERS hints: {", ".join(sig.faers_terms)}
+FAERS hints: {", ".join(sig.faers_terms)}
 AACT hints: {", ".join(sig.aact_terms)}
 PRICING hints: {", ".join(sig.pricing_terms)}
 
 Return JSON ONLY NO TRAILING CHARACTERS:
 {{
-  "drugs": List[str] or null,
-  "criteria": List[str] or null,
   "need_faers": <bool>,
   "need_aact": <bool>,
   "need_pricing": <bool>,
@@ -176,19 +195,17 @@ Return JSON ONLY NO TRAILING CHARACTERS:
 }}
 """
     try:
-        resp = llm.invoke([{"role":"system","content":system},{"role":"user","content":user}]).content
+        resp = llm.invoke([{"role":"system","content":ROUTER_SYSTEM},{"role":"user","content":user}]).content
         resp = re.sub(r"^```(?:json)?|```$", "", resp.strip(), flags=re.MULTILINE).strip()
         data = json.loads(resp)
     except Exception as e:
         print(e)
         data = {
-            "drugs": None,
-            "criteria": None,
-            "need_faers": True,
+            "need_faers": False,
             "need_aact": False,
             "need_pricing": False,
-            "router_rationale": "Fallback: parse error; defaulting to FAERS only.",
-            "faers_subq": state["question"],
+            "router_rationale": "Fallback: parse error; defaulting to None",
+            "faers_subq": None,
             "aact_subq": None,
             "pricing_subq": None
         }
@@ -196,8 +213,6 @@ Return JSON ONLY NO TRAILING CHARACTERS:
     #print(data.get("drugs"))
     #print(data.get("criteria"))
     return {
-        "drugs": data.get("drugs") if data.get("drugs") is not None else state.get("drugs"),
-        "criteria": data.get("criteria") if data.get("criteria") is not None else state.get("criteria"),
         "need_faers": bool(data.get("need_faers", False)),
         "need_aact": bool(data.get("need_aact", False)),
         "need_pricing": bool(data.get("need_pricing", False)),
@@ -207,42 +222,6 @@ Return JSON ONLY NO TRAILING CHARACTERS:
         "pricing_subq": data.get("pricing_subq") if data.get("pricing_subq") is not None else state.get('pricing_subq'),
     }
 
-
-def criteria_node(state: OrchestratorState) -> OrchestratorState:
-
-    llm_mini = ChatOpenAI(model="gpt-4o-mini", temperature=0)
-    system = f"""You are an information extractor. Your job is to identify whether the user has mentioned drug names or other criteria in the question.
-    Here is the question: {state['question']}
-Return a JSON with three lists: drugs, classes, and diseases.
-Rules: 
-- First, check whether user mentions drug names or other criteria.
-- 'drugs' → explicit brand or generic drug names (e.g., Alecensa, Lorbrena, Pembrolizumab). If explicit brand names are not mentioned, keep this NULL.
-- 'diseases' → cancer types or disease mentions. If the user does not mention any disease area, keep this as NULL.
-- If none found, return empty lists.
-- Return JSON ONLY NO TRAILING CHARACTERS:
-{{
-  "drugs": List[str] or null
-  "diseases": List[str] or null
-}}"""
-
-    try:
-        resp = llm_mini.invoke([{"role":"system","content":system}]).content
-        resp = re.sub(r"^```(?:json)?|```$", "", resp.strip(), flags=re.MULTILINE).strip()
-        data = json.loads(resp)
-    except Exception as e:
-        print(e)
-        data = {
-            "drugs":None,
-            "diseases":None
-        }
-
-    #print(data.get("drugs"))
-    #print(data.get("diseases"))
-
-    return{
-        "drugs":data.get("drugs"),
-        "diseases":data.get("diseases")
-    }
 
 
 
@@ -396,133 +375,11 @@ Instructions:
         ans = llm.invoke(prompt).content
         return {"final_answer": ans}
 
-    def plot_node(state: OrchestratorState) -> OrchestratorState:
-        want_chart = state.get('want_chart')
-        if not want_chart:
-            return {}
-   
-        llm = ChatOpenAI(model="gpt-4o", temperature=0)
-
-        def meta(df: Optional[pd.DataFrame]):
-            if isinstance(df, pd.DataFrame) and len(df) > 0:
-                return {
-                    "rows": len(df),
-                    "cols": df.shape[1],
-                    "columns": [str(c) for c in df.columns][:50],
-                    "dtypes": {str(k): str(v) for k, v in df.dtypes.items()},
-                }
-            return {"rows": 0, "cols": 0, "columns": [], "dtypes": {}}
-
-        def choose_df(question: str, f_df: Optional[pd.DataFrame], a_df: Optional[pd.DataFrame],p_df: Optional[pd.DataFrame]):
-            override = (state.get("plot_source") or "").lower()
-            if override in {"faers", "aact"}:
-                if override == "faers":
-                    return (f_df, "faers") 
-                elif override == "aact": 
-                    return (a_df, "aact")
-                else:
-                    return (p_df,"pricing")
-            q = (question or "").lower()
-            f_len = len(f_df) if isinstance(f_df, pd.DataFrame) else 0
-            a_len = len(a_df) if isinstance(a_df, pd.DataFrame) else 0
-            p_len = len(p_df) if isinstance(p_df, pd.DataFrame) else 0
-            if state.get("need_aact"):
-                return (a_df, "aact")
-            if state.get("need_faers"):
-                return (f_df, "faers")
-            if state.get("need_pricing"):
-                return (p_df, "pricing")
-            return (None, "none")
-
-        def run_safely(df, code: str):
-            # basic static hardening
-            banned = [
-                "__import__", "open(", "exec(", "eval(", "subprocess", "os.", "sys.",
-                "requests", "pickle", "shutil", "pathlib", "socket", "import "
-                "pandas.read_", "to_csv", "to_excel", "plotly.io.write", "fig.write"
-            ]
-            low = code.lower()
-            if any(b in low for b in banned):
-                #print(low)
-                raise ValueError("Unsafe code detected in chart snippet.")
-            import plotly.graph_objects as go  # allowed
-            safe_globals = {
-                "__builtins__": types.MappingProxyType({}),  # strip builtins
-                "px": px, "go": go, "pd":pd
-            }
-            safe_locals = {"df": df}
-            exec(code, safe_globals, safe_locals)  # code must set 'fig'
-            fig = safe_locals.get("fig")
-            if fig is None:
-                raise ValueError("The snippet did not create a variable named 'fig'.")
-            return fig
-
-        question = state.get("question") or ""
-        f_df = split_payload_to_df(state.get("faers_df"))
-        a_df = split_payload_to_df(state.get("aact_df"))
-        p_df = split_payload_to_df(state.get("pricing_df"))
-        df_to_plot, source = choose_df(question, f_df, a_df,p_df)
-        #print(source)
-        if not isinstance(df_to_plot, pd.DataFrame) or len(df_to_plot) == 0:
-            return {"chart_error": "No data available for plotting from FAERS or AACT.", "chart_source": source}
-
-        fmeta = meta(f_df)
-        ameta = meta(a_df)
-        pmeta = meta(p_df)
-        preview = df_to_plot.head(6).to_string(index=False)
-
-        prompt = f"""
-    You produce minimal Plotly Express code from a pandas DataFrame to visualize the user's question.
-
-    Rules:
-    - Use ONLY: df (pandas.DataFrame to plot), px (plotly.express), go (plotly.graph_objects optional).
-    - ALL IMPORTS ARE ALREADY PRESENT, DO NOT ADD IMPORT STATEMENTS TO THE CODE.
-    - DO NOT add any imports, files, network, or system access statements
-    - End with a variable named: fig
-    - Use clear defaults: informative title, axis labels, and template='plotly_white'.
-    - Time trend -> line/area; categorical comparison -> bar; distribution -> histogram/box/violin; heatmap for matrix-like comparisons.
-    - Use ONLY columns that exist in df.
-    - For PRICING related questions, use a STEP line (Plotly line_shape='hv') instead of slope lines.
-
-    User question:
-    {question}
-
-    Chosen dataset to plot: {source.upper()}
-
-    DF preview (first 6 rows):
-    {preview}
-
-    FAERS columns: {fmeta['columns']}
-    AACT columns : {ameta['columns']}
-    PRICING columns : {pmeta['columns']}
-
-    Return ONLY Python code that uses df and px (and optionally go) and ends with:
-    fig = <plotly figure>
-    """
-        code = llm.invoke(prompt).content.strip()
-        if code.startswith("```"):
-            code = code.strip("` \n")
-            if "\n" in code and code.split("\n", 1)[0].lower().startswith("python"):
-                code = code.split("\n", 1)[1]
-
-        #print(code)
-        try:
-            fig = run_safely(df_to_plot, code)
-            fig.update_layout(template="plotly_white")
-            return {
-                "figure_json": fig.to_json(),
-                "chart_source": source,
-                # "chart_code": code,  # uncomment if you want to inspect snippets
-            }
-        except Exception as e:
-            print(e)
-            return {"chart_error": f"Chart generation failed: {e}", "chart_source": source}
-        
-    
     
     # ---------- Graph (parallel fan-out) ----------
     graph = StateGraph(OrchestratorState)
-    #graph.add_node("criteria", criteria_node)
+    graph.add_node("drug_detector", drug_detector)
+    graph.add_node("get_relevant_drugs",get_relevant_drugs)
     graph.add_node("router", router_node)
     graph.add_node("faers", call_faers)
     graph.add_node("aact", call_aact)
@@ -530,11 +387,16 @@ Instructions:
     graph.add_node("gather", gather_node)
     graph.add_node("summarize", summarize_node)
     #graph.add_node("plot",plot_node)
-    #graph.set_entry_point("criteria")
-    graph.set_entry_point("router")
+    graph.set_entry_point("drug_detector")
+    #graph.set_entry_point("router")
 
     # Fan-out: run both agents concurrently; each checks its own flag
-    #graph.add_edge("criteria","router")
+    #graph.add_edge("drug_detector","get_relevant_drugs")
+    graph.add_conditional_edges("drug_detector", decide_next_after_entry, {
+        "router": "router",
+        "get_relevant_drugs": "get_relevant_drugs",
+    })
+    graph.add_edge("get_relevant_drugs","router")
     graph.add_edge("router", "faers")
     graph.add_edge("router", "aact")
     graph.add_edge("router", "pricing")
