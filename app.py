@@ -15,14 +15,14 @@ from functools import lru_cache
 
 from google.oauth2 import service_account
 from google.cloud.sql.connector import Connector, IPTypes
-import sqlalchemy
+#import sqlalchemy
 import uuid
 from utils.helpers import split_payload_to_df
 from PIL import Image
 from io import BytesIO
 import base64
 import hashlib
-
+from functools import partial
 
 #from langgraph.config import mermaid_config_context
 

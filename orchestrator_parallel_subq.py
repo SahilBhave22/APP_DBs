@@ -266,7 +266,7 @@ def build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app):
         subq = state.get("aact_subq") or state["question"]
         want_chart = state.get("want_chart")
         if state.get("call_source") == "chart_toggle":
-            s_in = {"question": subq, "df":state.get("aact_df"),
+            s_in = {"question": subq, "df":state.get("aact_df"),"drugs":state.get("drugs"),
                     "want_chart":want_chart,"call_source":state.get("call_source")}
             
             out = aact_app.invoke(s_in,config = config)
@@ -289,7 +289,7 @@ def build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app):
         want_chart = state.get("want_chart")
 
         if state.get("call_source") == "chart_toggle":
-            s_in = {"question": subq, "df":state.get("pricing_df"),
+            s_in = {"question": subq, "df":state.get("pricing_df"),"drugs":state.get("drugs"),
                     "want_chart":want_chart,"call_source":state.get("call_source")}
             
             out = pricing_app.invoke(s_in,config = config)
