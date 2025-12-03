@@ -44,7 +44,7 @@ def build_clinicaltrials_agent(
       draft_sql -> validate_sql -> (revise_sql)* -> run_sql -> done
     Returns a LangGraph app; final state has keys: sql, df, error.
     """
-    print(default_limit)
+    #print(default_limit)
     column_inventory = make_column_inventory(catalog)
     join_hints = make_join_hints(catalog)
 
@@ -57,7 +57,7 @@ def build_clinicaltrials_agent(
     # -------- Nodes --------
     
     def draft_sql_node(state: AgentState) -> AgentState:
-        print(state.get('drugs'))
+        #print(state.get('drugs'))
         SYSTEM_SQL = f"""You are an expert ClinicalTrials.gov (AACT) analyst who writes clean, safe PostgreSQL.
 
 Rules:

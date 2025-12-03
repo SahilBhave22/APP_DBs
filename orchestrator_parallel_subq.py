@@ -84,7 +84,7 @@ def drug_detector(state: OrchestratorState) -> OrchestratorState:
     return state
 
 def decide_next_after_entry(state: OrchestratorState) -> Literal["router", "get_relevant_drugs"]:
-        print(len(split_payload_to_df(state['drugs'])))
+        # print(len(split_payload_to_df(state['drugs'])))
         return "router" if len(split_payload_to_df(state['drugs']))>0 else "get_relevant_drugs"
 
 
@@ -133,28 +133,30 @@ Return STRICT JSON only.
 
     
     # normalize to lowercase to match LOWER() in SQL
-    selected_classes = [c.lower() for c in out.get("selected_drug_classes")]
-    selected_indications = [i.lower() for i in out.get("selected_drug_indications")]
+    selected_classes = [f"%{c.lower()}%" for c in out.get("selected_drug_classes")]
+    selected_indications = [f"%{i.lower()}%" for i in out.get("selected_drug_indications")]
 
+    # print(selected_classes)
+    # print(selected_indications)
 
     if len(selected_classes)>0:
         where_clauses.append(
-            "AND LOWER(dc.atc_class_name) = ANY(:selected_classes)"
+            "AND LOWER(dc.atc_class_name) ILIKE ANY(:selected_classes)"
         )
         params["selected_classes"] = selected_classes
 
     if len(selected_indications)>0:
         where_clauses.append(
-            "AND LOWER(di.indication_name) = ANY(:selected_indications)"
+            "AND LOWER(di.indication_name) ILIKE ANY(:selected_indications)"
         )
         params["selected_indications"] = selected_indications
 
     
     drugs_query += "\n" + "\n".join(where_clauses)
 
-    
+    # print(drugs_query)
     drugs_list = exec_sql(drugs_query,db_key="drugs",params = params)
-    print(drugs_list)
+    #print(drugs_list)
     state["drugs"] = df_to_split_payload(drugs_list)
 
     return state
