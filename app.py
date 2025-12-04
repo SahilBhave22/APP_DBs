@@ -4,9 +4,9 @@ import streamlit as st
 import pandas as pd
 from urllib.parse import quote_plus
 
-from fdaers_agent import build_fdaers_agent
-from clinicaltrials_agent import build_clinicaltrials_agent
-from pricing_agent import build_pricing_agent
+from agents.fdaers_agent import build_fdaers_agent
+from agents.clinicaltrials_agent import build_clinicaltrials_agent
+from agents.pricing_agent import build_pricing_agent
 from orchestrator_parallel_subq import build_orchestrator_parallel_subq
 from IPython.display import Image
 import plotly.io as pio
