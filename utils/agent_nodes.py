@@ -189,7 +189,7 @@ def plot_node(state: AgentState) -> AgentState:
             code = code.split("\n", 1)[1]
 
     try:
-        #print(code)
+        print(code)
         fig = run_safely(df_to_plot, code)
         fig.update_layout(template="plotly_white")
         state["figure_json"] = fig.to_json()

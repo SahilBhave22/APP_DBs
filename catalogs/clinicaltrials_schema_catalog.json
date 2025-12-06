@@ -1164,7 +1164,7 @@
         {
           "name": "agency_class",
           "type": "character varying",
-          "description": null
+          "description": "Possible values: INDUSTRY, FED, OTHER_GOV, INDIV"
         },
         {
           "name": "lead_or_collaborator",
