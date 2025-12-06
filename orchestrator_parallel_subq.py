@@ -81,6 +81,8 @@ def drug_detector(state: OrchestratorState) -> OrchestratorState:
     
     state['drugs'] = df_to_split_payload(pd.DataFrame({'Brand Name': out.get('drugs')}))
     state['criteria'] = out.get('criteria_phrases')
+    state['companies'] = out.get('companies')
+    print(state['companies'])
     return state
 
 def decide_next_after_entry(state: OrchestratorState) -> Literal["router", "get_relevant_drugs"]:
@@ -93,15 +95,20 @@ def get_relevant_drugs(state: OrchestratorState) -> OrchestratorState:
         drugs_json =  json.load(f)
     
     #print(drugs_json)
+    # print("aa")
+    # print(state.get('companies'))
     FETCH_RELEVANT_DRUGS_USER = f"""
 drugs_json: {drugs_json}
 
 criteria_phrases:
 {state.get('criteria')}
 
+drug manufacturer companies:
+{state['companies']}
+
 Return STRICT JSON only.
 """
-    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+    llm = ChatOpenAI(model="gpt-4o", temperature=0)
     resp = llm.invoke([
             {"role": "system", "content": FETCH_RELEVANT_DRUGS_SYSTEM},
             {"role": "user", "content": FETCH_RELEVANT_DRUGS_USER},
@@ -116,7 +123,9 @@ Return STRICT JSON only.
     # print(out.get('selected_drug_indications'))
     # print(out.get('rationale'))
     # print("Exit")
-
+    # print("select_drugs: ")
+    # print(out.get("selected_drug_companies"))
+    # print(out.get("rationale"))
     drugs_query = """
     select distinct dr.brand_name 
     from drugs dr 
@@ -124,6 +133,8 @@ Return STRICT JSON only.
     on dr.brand_name = dc.brand_name
     left join drug_indications di
     on dr.brand_name = di.brand_name
+    left join drug_manufacturers dm
+    on dr.brand_name = dm.brand_name
     where 1=1
     """
 
@@ -134,6 +145,7 @@ Return STRICT JSON only.
     # normalize to lowercase to match LOWER() in SQL
     selected_classes = [f"%{c.lower()}%" for c in out.get("selected_drug_classes")]
     selected_indications = [f"%{i.lower()}%" for i in out.get("selected_drug_indications")]
+    selected_companies = [f"%{m.lower()}%" for m in out.get("selected_drug_companies")]
 
     # print(selected_classes)
     # print(selected_indications)
@@ -149,6 +161,12 @@ Return STRICT JSON only.
             "AND LOWER(di.indication_name) ILIKE ANY(:selected_indications)"
         )
         params["selected_indications"] = selected_indications
+
+    if len(selected_companies)>0:
+        where_clauses.append(
+            "AND LOWER(dm.manufacturer) ILIKE ANY(:selected_companies)"
+        )
+        params["selected_companies"] = selected_companies
 
     
     drugs_query += "\n" + "\n".join(where_clauses)

@@ -1174,7 +1174,7 @@
         {
           "name": "name",
           "type": "character varying",
-          "description": null
+          "description": "Some possible values: AbbVie, Amgen, AstraZeneca, Bayer, BeiGene, Boehringer Ingelheim, Bristol-Myers Squibb, Celgene, Eli Lilly and Company, EMD Serono Research & Development Institute, Inc., Genentech, Inc., GlaxoSmithKline, Hoffmann-La Roche, Janssen Research & Development, LLC, Jazz Pharmaceuticals, Merck Sharp & Dohme LLC,  Novartis Pharmaceuticals, Pfizer, Regeneron Pharmaceuticals, Sanofi, Takeda"
         }
       ]
     },

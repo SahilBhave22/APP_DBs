@@ -8,6 +8,7 @@ class OrchestratorState(TypedDict, total=False):
     drugs : Optional[List[str]]
     #classes : Optional[List[str]]
     criteria : Optional[List[str]]
+    companies : Optional[List[str]]
     want_summary:bool
     want_chart : bool
     call_source: Optional[str]

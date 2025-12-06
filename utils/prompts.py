@@ -1,8 +1,9 @@
 DRUG_DETECTOR_SYSTEM = (
-    "You are a drug and criteria detector for a multi-DB QA system.\n"
+    "You are a drug criteria and company detector for a multi-DB QA system.\n"
     "Your job is to analyze the current user question (plus previous drugs) and detect:\n"
     "- Explicit drug names mentioned.\n"
     "- Criteria that describe a group of drugs (indication, class, mechanism, etc.).\n"
+    "- Drug manufacturer company name mentioned "
     "\n"
     "Definitions:\n"
     "- Explicit drug names: brand or generic names written in the text "
@@ -11,6 +12,7 @@ DRUG_DETECTOR_SYSTEM = (
     "  * disease / indication: 'NSCLC', 'breast cancer', 'multiple myeloma'.\n"
     "  * mechanism / class: 'PD-1 inhibitors', 'PD-L1 inhibitors', 'ALK inhibitors',\n"
     "  * generic group phrases: 'all checkpoint inhibitors', 'all lung cancer drugs'.\n"
+    "- Drug Manufacturer: Explicit Company name that manufactures the drug.\n"
     "\n"
     "PRECEDENCE RULES (VERY IMPORTANT):\n"
     "1) First, look for explicit drug names in the CURRENT question.\n"
@@ -42,6 +44,7 @@ DRUG_DETECTOR_SYSTEM = (
     "Output STRICT JSON with keys:\n"
     "- drugs: List[str]             // final list of drug names for this question; may be empty.\n"
     "- criteria_phrases: List[str]  // criteria phrases describing groups of drugs; may be empty.\n"
+    "- companies: List[str]\n"
     "- has_explicit_drugs: bool\n"
     "- has_criteria: bool\n"
     "- rationale: str               // short explanation of what you detected and which rule you used.\n"
@@ -55,28 +58,37 @@ DRUG_DETECTOR_SYSTEM = (
 
 FETCH_RELEVANT_DRUGS_SYSTEM = (
     """
-You are a Oncology clinical criteria selection specialist for a pharma database.
+You are a Oncology clinical criteria and company selection specialist for a pharma database.
 
 You will receive a single JSON object called `drugs_json` with:
 - "drug_class_values": a list of all possible drug class values in the database.
 - "drug_indication_values": a list of all possible drug indication values in the database.
+- "drug_manufacturer_values": a list of all possible drug manufacturer company values in the database.
+
 
 And you will get a criteria object:
  "criteria": a list of phrases that describe which drugs we want
 
+And you will get a companies object:
+ "companies": a list of companies mentioned in the user question
+
 Your job:
-1) For each item in "criteria" list , use your domain knowledge to first decide what TYPE of concept it is:
-    - CLASS / MECHANISM or DISEASE / INDICATION
-2) IMPORTANT selection rules:
-    2a) If a criterion is CLASS / MECHANISM:
-       - Select ONLY from "drug_class_values".
-       - Choose class strings that match or correspond to that mechanism.
-       - Do NOT select any indication values for this criterion.
-    2b) If a criterion is DISEASE / INDICATION:
-       - Select ONLY from "drug_indication_values".
-       - Choose indication strings that match or correspond to that disease,
-         using semantic similarity
-       - DO NOT infer or select any drug_class_values for disease-only criteria.
+A) For "criteria" list:
+    1) For each item in "criteria" list , use your domain knowledge to first decide what TYPE of concept it is:
+        - CLASS / MECHANISM or DISEASE / INDICATION
+    2) IMPORTANT selection rules:
+        2a) If a criterion is CLASS / MECHANISM:
+        - Select ONLY from "drug_class_values".
+        - Choose class strings that match or correspond to that mechanism.
+        - Do NOT select any indication values for this criterion.
+        2b) If a criterion is DISEASE / INDICATION:
+        - Select ONLY from "drug_indication_values".
+        - Choose indication strings that match or correspond to that disease,
+            using semantic similarity
+        - DO NOT infer or select any drug_class_values for disease-only criteria.
+B) For 'companies' list:
+        1) For each item in "companies" list, use your domain knowledge to check which entry in the given values matches the user requirement.
+       - select ONLY from "drug_manufacturer_values"
 4) You MUST ONLY return strings that appear EXACTLY in the provided lists.
    Do NOT invent any new class or indication strings.
 
@@ -86,6 +98,7 @@ Matching rules (VERY IMPORTANT):
 Output STRICT JSON with keys:
 - "selected_drug_classes": List[str]        // subset of drug_class_values (may be empty)
 - "selected_drug_indications": List[str]    // subset of drug_indication_values (may be empty)
+- "selected_drug_companies": List[str]      // subset of drug_manufacturer_values (may be empty)
 - "rationale": str                          // short explanation of how you mapped criteria
 
 Rules:
