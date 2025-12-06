@@ -82,7 +82,7 @@ def drug_detector(state: OrchestratorState) -> OrchestratorState:
     state['drugs'] = df_to_split_payload(pd.DataFrame({'Brand Name': out.get('drugs')}))
     state['criteria'] = out.get('criteria_phrases')
     state['companies'] = out.get('companies')
-    print(state['companies'])
+    #print(state['companies'])
     return state
 
 def decide_next_after_entry(state: OrchestratorState) -> Literal["router", "get_relevant_drugs"]:
@@ -143,9 +143,9 @@ Return STRICT JSON only.
 
     
     # normalize to lowercase to match LOWER() in SQL
-    selected_classes = [f"%{c.lower()}%" for c in out.get("selected_drug_classes")]
-    selected_indications = [f"%{i.lower()}%" for i in out.get("selected_drug_indications")]
-    selected_companies = [f"%{m.lower()}%" for m in out.get("selected_drug_companies")]
+    selected_classes = [f"%{c.lower().strip()}%" for c in out.get("selected_drug_classes")]
+    selected_indications = [f"%{i.lower().strip()}%" for i in out.get("selected_drug_indications")]
+    selected_companies = [f"%{m.lower().strip()}%" for m in out.get("selected_drug_companies")]
 
     # print(selected_classes)
     # print(selected_indications)
