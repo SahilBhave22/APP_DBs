@@ -88,6 +88,7 @@ A) For "criteria" list:
         - DO NOT infer or select any drug_class_values for disease-only criteria.
 B) For 'companies' list:
         1) For each item in "companies" list, use your domain knowledge to check which entry in the given values matches the user requirement.
+            1a) Be careful to identify if common Pharma company shortforms or abbreviations are mentioned. Use your domain knowledge to map them to the relevant entries in the drug_manufacturers_values list
        - select ONLY from "drug_manufacturer_values"
 4) You MUST ONLY return strings that appear EXACTLY in the provided lists.
    Do NOT invent any new class or indication strings.

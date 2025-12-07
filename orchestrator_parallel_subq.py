@@ -123,9 +123,9 @@ Return STRICT JSON only.
     # print(out.get('selected_drug_indications'))
     # print(out.get('rationale'))
     # print("Exit")
-    # print("select_drugs: ")
-    # print(out.get("selected_drug_companies"))
-    # print(out.get("rationale"))
+    print("select_drugs: ")
+    print(out.get("selected_drug_companies"))
+    print(out.get("rationale"))
     drugs_query = """
     select distinct dr.brand_name 
     from drugs dr 
@@ -187,7 +187,7 @@ def router_node(state: OrchestratorState) -> OrchestratorState:
             "need_pricing": state.get('pricing_df') is not None
         }
     
-    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+    llm = ChatOpenAI(model="gpt-4o", temperature=0)
     sig = default_signals()
 
     
