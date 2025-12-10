@@ -62,6 +62,7 @@ Rules:
   - reac.primaryid <-> demo.primaryid
 - Case-insensitive filters: use ILIKE for text.
 - For a drugs list, ALWAYS give data segregated by brand name.
+- Always give only the top 10 (by report counts) adverse event terms per drug.
 - DO NOT USE ROR tables UNLESS USER SPECIFICALLY ASKS. DEFAULT CHOICE SHOULD BE COUNT(DISTINCT demo.primaryid)).
 - Guidance for comparative queries
     - IF comparsion among 2 drugs is asked, make sure to add a stratification by the brand_name too.

@@ -70,6 +70,10 @@ Rules:
 - Never use parameters or placeholders of any kind (no :param, @param, ?, $1, etc.).
 - If the question lists multiple drug names, inline them in the SQL using an IN 
 - ALWAYS USE public.drug_trials TABLE TO GET TRIAL IDS FOR A PARTICULAR DRUG. 
+- Guidelines for pipeline drug related queries:
+    - If the question mentions pipeline/upcoming drugs -> extract data from public.onco_pipeline_trials
+    - Ignore the `drugs` list provided.
+    - For PRO queries related to pipeline drugs use public.design_outcomes_pro table.
 - DO NOT USE PRO related tables unless user explicitly mentions.
 - Guidelines for endpoint/ outcome related queries
     - Endpoints mean outcomes.
@@ -94,6 +98,8 @@ Guidance for comparative queries
     - ALWAYS Filter with WHERE rank_col <= N to return top-N per group.
     - Do not use a global LIMIT N, since that only applies across the whole result set.
     - Preserve deduplication (e.g., COUNT(DISTINCT nct_id)) as usual.
+For adverse events relates queries:
+    - Always return only the top 5 adverse event terms per trial by number of subjects affected.
 - Default LIMIT {default_limit} unless the user asks for more.
 - Keep the query readable and minimal (CTEs encouraged).
 - DO NOT AGGREGATE or AVERAGE any values unless specifically asked.

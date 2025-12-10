@@ -136,7 +136,7 @@ with st.sidebar:
     want_summary = st.toggle("Want a summary?", value = True)
     want_chart = st.toggle("Want a chart?", value=True)
     safe_mode = True #st.toggle("Safe mode (SELECT/WITH only)", value=True)
-    default_limit = st.number_input("Default LIMIT", 10, 10000, 200, step=10)
+    default_limit = st.number_input("Default LIMIT", 10, 20000, 2000, step=10)
 
 q = st.text_area(
     "Ask a question",

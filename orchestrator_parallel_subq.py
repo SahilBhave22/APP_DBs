@@ -50,7 +50,10 @@ def default_signals() -> Signals:
 def drug_detector(state: OrchestratorState) -> OrchestratorState:
     if(state.get('call_source')!= 'database'):
         return state
-    
+    if('pipeline' in state.get("question")):
+        state["drugs"] = None
+        return state
+
     llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 
     prev_drugs = state.get("drugs")
@@ -87,7 +90,7 @@ def drug_detector(state: OrchestratorState) -> OrchestratorState:
 
 def decide_next_after_entry(state: OrchestratorState) -> Literal["router", "get_relevant_drugs"]:
         # print(len(split_payload_to_df(state['drugs'])))
-        return "router" if len(split_payload_to_df(state['drugs']))>0 else "get_relevant_drugs"
+        return "router" if state['drugs'] is None or len(split_payload_to_df(state['drugs']))>0 else "get_relevant_drugs"
 
 def get_relevant_drugs(state: OrchestratorState) -> OrchestratorState:
     
@@ -348,7 +351,9 @@ def build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app):
         ameta = meta(split_payload_to_df(state.get("aact_df")))
         pmeta = meta(split_payload_to_df(state.get("pricing_df")))
 
-        drugs_df = split_payload_to_df(state.get("drugs")).to_records("records")
+        drugs_df = ""
+        if state.get("drugs") is not None:
+            drugs_df = split_payload_to_df(state.get("drugs")).to_records("records")
         hist = state.get("chat_history", [])[-8:]  # last few turns
         hist_str = "\n".join(f"{r.upper()}: {c}" for r, c in hist) if hist else "None"
         criteria_str = "\n".join(f"{c}" for c in state.get("criteria")) if state.get("criteria") else "None"

@@ -20,21 +20,6 @@
           "name": "brand_name",
           "type": "character varying",
           "description": "Brand name for the drug"
-        },
-        {
-          "name": "units",
-          "type": "character varying",
-          "description": null
-        },
-        {
-          "name": "scope",
-          "type": "character varying",
-          "description": null
-        },
-        {
-          "name": "count",
-          "type": "integer",
-          "description": null
         }
       ]
     },
@@ -219,6 +204,74 @@
           "name":"id",
           "type":"integer",
           "description":"foreign key referencing reported_events.result_group_id"
+        }
+      ]
+    },
+    {
+      "name": "public.onco_pipeline_trials",
+      "description": "Trial ids for relevant trials for pipeline/ upcoming drugs.",
+      "primary_key": [
+        "nct_id"
+      ],
+      "columns": [
+        {
+          "name": "nct_id",
+          "type": "character varying",
+          "description": "foreign key referencing studies.nct_id"
+        },
+        {
+          "name": "sponsor_name",
+          "type": "character varying",
+          "description": "Some possible values: AbbVie, Amgen, AstraZeneca, Bayer, BeiGene, Boehringer Ingelheim, Bristol-Myers Squibb, Celgene, Eli Lilly and Company, EMD Serono Research & Development Institute, Inc., Genentech, Inc., GlaxoSmithKline, Hoffmann-La Roche, Janssen Research & Development, LLC, Jazz Pharmaceuticals, Merck Sharp & Dohme LLC,  Novartis Pharmaceuticals, Pfizer, Regeneron Pharmaceuticals, Sanofi, Takeda"
+        },
+        {
+          "name": "intervention_name",
+          "type": "character varying",
+          "description": "Name of the intervention/ drug that is studied in the trial"
+        },
+        {
+          "name": "conditions",
+          "type": "character varying",
+          "description": "mesh term for condition studied in the trial. Also follows medrt coding."
+        }
+      ]
+    },
+    {
+      "name": "public.onco_pipeline_design_outcomes_pro",
+      "description": "Trial ids for relevant trials for pipeline/ upcoming drugs.",
+      "primary_key": [
+        "nct_id"
+      ],
+      "columns": [
+        {
+          "name": "nct_id",
+          "type": "character varying",
+          "description": "foreign key referencing studies.nct_id"
+        },
+        {
+          "name": "intervention_name",
+          "type": "character varying",
+          "description": "name for the drug. foreign key referencing onco_pipeline_trials.intervention_name"
+        },
+        {
+          "name": "instrument_name",
+          "type": "character varying",
+          "description": "Name of the PRO instrument used to measure the outcome."
+        },
+        {
+          "name": "design_outcome_id",
+          "type": "character varying",
+          "description": "foreign key referencing ctgov.design_outcomes.id"
+        },
+        {
+          "name": "measure",
+          "type": "character varying",
+          "description": null
+        },
+        {
+          "name": "description",
+          "type": "character varying",
+          "description": null
         }
       ]
     },
@@ -1061,7 +1114,7 @@
         {
           "name": "subjects_affected",
           "type": "integer",
-          "description": null
+          "description": "Always Apply a filter to only return cases where subjects_affected >0"
         },
         {
           "name": "subjects_at_risk",

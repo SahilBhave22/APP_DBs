@@ -120,6 +120,7 @@ ROUTER_SYSTEM = (
     "- DO NOT modify, expand, replace, guess, or infer new drug names.\n"
     "- Use the 'drugs' list exactly as provided when writing sub-questions.\n"
     "- If 'drugs' is empty, write sub-questions without mentioning drugs.\n"
+    "- If the user mentions `pipeline` ignore the drugs list given above. MAKE SURE to include the pipeline word in sub-questions."
     "\n"
 
     "DO NOT GIVE ANY TRAILING OR LEADING CHARACTERS AROUND THE JSON"
