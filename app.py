@@ -134,7 +134,7 @@ with st.sidebar:
     st.header("Settings")
     safe_mode = True #st.toggle("Safe mode (SELECT/WITH only)", value=True)
     want_summary = st.toggle("Want a summary?", value = True)
-    want_chart = st.toggle("Want a chart?", value=True)
+    want_chart = st.toggle("Want a chart?", value=False)
     safe_mode = True #st.toggle("Safe mode (SELECT/WITH only)", value=True)
     default_limit = st.number_input("Default LIMIT", 10, 20000, 2000, step=10)
 

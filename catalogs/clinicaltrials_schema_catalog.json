@@ -87,7 +87,7 @@
         {
           "name": "title",
           "type": "character varying",
-          "description": "ALWAYS include title in the result when outcomes or outcome names are asked."
+          "description": "ALWAYS include title in the result when outcomes or outcome names are asked. This is NOT a foreign key."
         },
         {
           "name": "description",

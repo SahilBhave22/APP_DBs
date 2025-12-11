@@ -137,6 +137,7 @@ ROUTER_SYSTEM = (
     "\n"
     "SUB-QUESTION RULES:\n"
     "- Sub-questions must:\n"
+    "    * IF the user question mentions `oncology`, IGNORE the word and DO NOT include that word in sub-questions."
     "    * directly reflect the user's question,\n"
     "    * mention drugs EXACTLY as given in the 'drugs' list (if non-empty),\n"
     "    * avoid adding new conditions not asked by the user,\n"

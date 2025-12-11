@@ -45,6 +45,7 @@ def clean_sql(sql: str) -> str:
     s = sql.strip()
     s = re.sub(r"^```[a-zA-Z]*\s*", "", s)  # remove opening ``` / ```sql
     s = re.sub(r"\s*```$", "", s)           # remove trailing ```
+    s = re.sub(r"\bdo\b", "doc", s)
     return s.strip()
 
 
