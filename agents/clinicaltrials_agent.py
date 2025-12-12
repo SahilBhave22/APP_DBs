@@ -78,10 +78,12 @@ Rules:
 - Guidelines for endpoint/ outcome related queries
     - Endpoints mean outcomes.
     - BE very careful to check whether design outcomes or actual outcomes are asked.
+    - DO NOT USE design outcome tables unless user SPECIFICALLY asks for it.
     - DO NOT RETURN outcome titles, ALWAYS USE public.drug_trial_outcome_categories table.
     - To identify primary/secondary/other endpoints, ALWAYS USE either ctgov.outcomes.outcome_type or ctgov.design_outcomes.outcome_type.
     - IF outcome/ endpoint categories are asked, ALWAYS USE public.drug_trial_outcome_categories table.
     - USE PRO related tables only if the user asks for PRO or patient reported outcomes.
+    - WHen results are asked: ALWAYS USE `outcomes` and `outcome_measurements` tables.
 - Guidelines for PRO related queries:
     - ALWAYS USE public.drug_trial_outcomes_pro TABLE to get trial ids and outcome ids for patient reported outcomes (PRO) measures.
     - ALWAYS USE public.domain_score_match to get PRO domain or sub-scale information.
