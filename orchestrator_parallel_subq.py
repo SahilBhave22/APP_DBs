@@ -336,20 +336,25 @@ def build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app):
         if not want_summary:
             return {}
         llm = ChatOpenAI(model="gpt-4o", temperature=0)
+        llm_mini = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+
+        def chunk_df(df, size=500):
+            return [df[i:i+size] for i in range(0, len(df), size)]
 
         def meta(df: Optional[pd.DataFrame]):
             if isinstance(df, pd.DataFrame):
                 return {
                     "rows": len(df),
                     "cols": df.shape[1],
-                    "columns": [str(c) for c in df.columns][:40],
-                    "sample": df.head(100).to_dict("records")
+                    "columns": list(df.columns)
                 }
-            return {"rows": 0, "cols": 0, "columns": [], "sample": []}
+            return {"rows": 0, "cols": 0, "columns": []}
+        
+        f_df = split_payload_to_df(state.get("faers_df"))
+        a_df = split_payload_to_df(state.get("aact_df"))
+        p_df = split_payload_to_df(state.get("pricing_df"))
 
-        fmeta = meta(split_payload_to_df(state.get("faers_df")))
-        ameta = meta(split_payload_to_df(state.get("aact_df")))
-        pmeta = meta(split_payload_to_df(state.get("pricing_df")))
+        fmeta, ameta, pmeta = meta(f_df), meta(a_df), meta(p_df)
 
         drugs_df = ""
         if state.get("drugs") is not None:
@@ -358,56 +363,95 @@ def build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app):
         hist_str = "\n".join(f"{r.upper()}: {c}" for r, c in hist) if hist else "None"
         criteria_str = "\n".join(f"{c}" for c in state.get("criteria")) if state.get("criteria") else "None"
         #drugs_str = "\n".join(f"{d}" for d in state.get()) if hist else "None"
-        prompt = f"""
-Write a concise, decision-ready report using the available sources.
+        def summarize_chunk(df, source_name):
+            """Summarize a DF chunk with contextual understanding."""
+            text = df.to_json(orient="records")
+            prompt = f"""
+You are a domain-aware pharma/clinical data analyst.
 
-Recent questions:
-{hist_str}
+You are analyzing a CHUNK of a dataset from: **{source_name}**
 
 User Search Criteria:
 {criteria_str}
 
-Drugs of interest:
+Drugs of Interest:
 {drugs_df}
 
+Chat history context:
+{hist_str}
 
-Router:
-- FAERS sub-question: {state.get('faers_subq') or '—'}
-- AACT  sub-question: {state.get('aact_subq') or '—'}
-- PRICING  sub-question: {state.get('pricing_subq') or '—'}
+Column definitions in this chunk:
+{list(df.columns)}
 
-FAERS:
-- rows: {fmeta['rows']}, cols: {fmeta['cols']}
-- columns (first 40): {fmeta['columns']}
-- sample rows (≤100): {fmeta['sample']}
-- SQL: {(state.get('faers_sql') or '')[:1200]}
-- error: {state.get('faers_error') or 'None'}
+Your goals:
+1. Identify meaningful patterns, trends, safety signals, clinical themes, or pricing behavior.
+2. Interpret both numerical and text fields (e.g., reaction names, intervention types, costs).
+3. Flag anomalies, outliers, or surprising co-occurrences.
+4. DO NOT hallucinate missing columns or values.
+5. DO NOT repeat row-level data.
+6. Think as if this chunk is *part of a larger dataset*; highlight patterns that might scale.
 
-AACT:
-- rows: {ameta['rows']}, cols: {ameta['cols']}
-- columns (first 40): {ameta['columns']}
-- sample rows (≤100): {ameta['sample']}
-- SQL: {(state.get('aact_sql') or '')[:1200]}
-- error: {state.get('aact_error') or 'None'}
+Chunk Data (JSON, full fidelity):
+{text[:30000]}
 
-PRICING:
-- rows: {pmeta['rows']}, cols: {pmeta['cols']}
-- columns (first 40): {pmeta['columns']}
-- sample rows (≤100): {pmeta['sample']}
-- SQL: {(state.get('pricing_sql') or '')[:1200]}
-- error: {state.get('pricing_error') or 'None'}
-
-Instructions:
-- DO NOT REPEAT THE RESULTS OF SQL QUERIES.
-- Use the per-DB sub-questions as the lens for interpreting each table.
-- Do NOT dump tables; surface patterns, outliers, caveats.
-- Suggest 1–3 concrete next steps.
-- DO NOT MAKE UP summary, please derive only from results of sql data.
-- Preserve all numeric fields exactly as shown.
-- Confine your summary to 2000 words.
+Produce a coherent summary (~200–300 words) for this chunk only.
 """
-        ans = llm.invoke(prompt).content
-        return {"final_answer": ans}
+            resp = llm_mini.invoke(prompt)
+            return resp.content.strip()
+        
+        def process_source(df, name):
+            if isinstance(df, pd.DataFrame) and len(df) > 0:
+                chunks = chunk_df(df)
+                out = []
+                for i, c in enumerate(chunks):
+                    out.append(summarize_chunk(c, f"{name} (chunk {i+1})"))
+                return out
+            return []
+        
+        faers_summaries = process_source(f_df, "FAERS")
+        aact_summaries = process_source(a_df, "AACT")
+        pricing_summaries = process_source(p_df, "PRICING")
+
+        all_summaries = faers_summaries + aact_summaries + pricing_summaries
+
+        prompt_final = f"""
+You are a senior pharma / clinical trial / safety data analyst.
+
+Below are summaries derived from chunk-level analysis of FAERS, AACT, and PRICING datasets.
+Your task is to combine them into ONE unified, decision-ready report.
+If multiple chunks mention the same pattern, consolidate them into one single insight in the final summary. 
+Do not repeat similar points.
+
+Context:
+User Search Criteria:
+{criteria_str}
+
+Drugs:
+{drugs_df}
+
+FAERS Meta: {fmeta}
+AACT Meta: {ameta}
+PRICING Meta: {pmeta}
+
+Chat History:
+{hist_str}
+
+Your goals:
+- Merge all chunk insights into a coherent end-to-end narrative.
+- Identify cross-database relationships (e.g., trial signals vs. AE patterns vs. pricing).
+- Capture real patterns only from summaries (no hallucinations).
+- Highlight safety issues, clinical insights, pricing implications.
+- Add 1–3 recommended next steps.
+- Keep ≤2000 words.
+
+Chunk Summaries:
+{"\n\n-----\n\n".join(all_summaries)}
+"""
+
+        final_answer = llm.invoke(prompt_final).content
+        return {"final_answer": final_answer}
+    
+
 
     
     # ---------- Graph (parallel fan-out) ----------
