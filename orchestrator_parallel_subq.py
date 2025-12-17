@@ -47,6 +47,7 @@ def default_signals() -> Signals:
         ],
     )
 
+
 def drug_detector(state: OrchestratorState) -> OrchestratorState:
     if(state.get('call_source')!= 'database'):
         return state
@@ -75,31 +76,37 @@ def drug_detector(state: OrchestratorState) -> OrchestratorState:
 
     out_raw = re.sub(r"^```[a-zA-Z]*\n?|```$", "", resp.content).strip()
     out = json.loads(out_raw)
-    #out = json.loads(resp.content)
-    # print("enter ehllo")
-    # print(type(out.get('drugs')))
-    # print(out.get('criteria_phrases'))
-    # print(out.get('rationale'))
-    # print("enter exit")
     
-    state['drugs'] = df_to_split_payload(pd.DataFrame({'Brand Name': out.get('drugs')}))
+    new_drugs_df = pd.DataFrame({'Brand Name': out.get('drugs')})
+    new_drugs = df_to_split_payload(new_drugs_df)
+  
+    state['drugs'] = new_drugs if len(new_drugs_df)>0 else prev_drugs
+    
     state['criteria'] = out.get('criteria_phrases')
     state['companies'] = out.get('companies')
-    #print(state['companies'])
+    state['user_criteria_changed'] = out.get('user_criteria_changed')
+    #print(out.get('user_criteria_changed'))
+    #print(out.get('rationale'))
     return state
 
 def decide_next_after_entry(state: OrchestratorState) -> Literal["router", "get_relevant_drugs"]:
         # print(len(split_payload_to_df(state['drugs'])))
-        return "router" if state['drugs'] is None or len(split_payload_to_df(state['drugs']))>0 else "get_relevant_drugs"
-
+        # if "faers_df" in state or "aact_df" in state or "pricing_df" in state or (state['drugs'] is not None and len(state['drugs'])>0):
+        #     return "router"
+        # else:
+        #     return "get_relevant_drugs"
+        
+        if state.get('user_criteria_changed'):
+            return "get_relevant_drugs"
+        else:
+            return "router"
+        
 def get_relevant_drugs(state: OrchestratorState) -> OrchestratorState:
     
     with open("catalogs/drugs_schema_catalog.json", "r", encoding="utf-8") as f:
         drugs_json =  json.load(f)
     
-    #print(drugs_json)
-    # print("aa")
-    # print(state.get('companies'))
+    
     FETCH_RELEVANT_DRUGS_USER = f"""
 drugs_json: {drugs_json}
 
@@ -121,14 +128,7 @@ Return STRICT JSON only.
     out_raw = re.sub(r"^```[a-zA-Z]*\n?|```$", "", resp.content).strip()
     out = json.loads(out_raw)
     
-    # print("Enter")
-    # print(out.get('selected_drug_classes'))
-    # print(out.get('selected_drug_indications'))
-    # print(out.get('rationale'))
-    # print("Exit")
-    print("select_drugs: ")
-    print(out.get("selected_drug_companies"))
-    print(out.get("rationale"))
+    
     drugs_query = """
     select distinct dr.brand_name 
     from drugs dr 
@@ -285,6 +285,7 @@ def build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app):
         if not state.get("need_aact") or state.get("call_source")=="summary_toggle":
             return {}
         
+
         subq = state.get("aact_subq") or state["question"]
         want_chart = state.get("want_chart")
         if state.get("call_source") == "chart_toggle":
@@ -296,11 +297,11 @@ def build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app):
 
         s_in = {"question": subq, "sql": None, "error": None, "want_chart":want_chart,
                 "attempts": 0, "summary": None, "df": None,"call_source":state.get("call_source"),
-                "drugs":state.get('drugs'),
+                "drugs":state.get('drugs'), "active_trial_scope":state.get('active_trial_scope'),
                 "criteria":state.get('criteria')}
         out = aact_app.invoke(s_in,config = config)
         return {"aact_sql": out.get("sql"), "aact_df": out.get("df"), "aact_figure_json":out.get("figure_json"),
-                "aact_error": out.get("error"), "aact_sql_explain":out.get("sql_explain")}
+                "aact_error": out.get("error"), "aact_sql_explain":out.get("sql_explain"),"active_trial_scope":out.get("active_trial_scope")}
     
     @traceable(name="PRICING Agent")
     def call_pricing(state: OrchestratorState,config) -> OrchestratorState:
@@ -467,7 +468,8 @@ Chunk Summaries:
     #graph.add_node("plot",plot_node)
     graph.set_entry_point("drug_detector")
     #graph.set_entry_point("router")
-
+    
+    
     # Fan-out: run both agents concurrently; each checks its own flag
     #graph.add_edge("drug_detector","get_relevant_drugs")
     graph.add_conditional_edges("drug_detector", decide_next_after_entry, {

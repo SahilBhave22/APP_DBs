@@ -45,9 +45,9 @@ DRUG_DETECTOR_SYSTEM = (
     "- drugs: List[str]             // final list of drug names for this question; may be empty.\n"
     "- criteria_phrases: List[str]  // criteria phrases describing groups of drugs; may be empty.\n"
     "- companies: List[str]\n"
-    "- has_explicit_drugs: bool\n"
-    "- has_criteria: bool\n"
+    "- user_criteria_changed: bool // Set to True if user drugs/criteria/company has changed or a new drugs/criteria/company is added from previous question.\n"
     "- rationale: str               // short explanation of what you detected and which rule you used.\n"
+    
     "\n"
     "Rules:\n"
     "- Do NOT validate drug names against any catalog; just extract what looks like drug names.\n"

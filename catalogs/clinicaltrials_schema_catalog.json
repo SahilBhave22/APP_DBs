@@ -141,30 +141,6 @@
       ]
     },
     {
-      "name": "public.drug_result_groups",
-      "description": "Results groups in which the drug of interest was used",
-      "primary_key": [
-        "nct_id"
-      ],
-      "columns": [
-        {
-          "name": "nct_id",
-          "type": "character varying",
-          "description": "foreign key referencing studies.nct_id"
-        },
-        {
-          "name": "brand_name",
-          "type": "character varying",
-          "description": "foreign key referencing drug_trial_outcomes.brand_name"
-        },
-        {
-          "name":"result_group_id",
-          "type":"character varying",
-          "description":"foreign key referencing reported_events.result_group_id and result_groups.id"
-        }
-      ]
-    },
-    {
       "name": "public.drug_trial_outcome_categories",
       "description": "Trial outcomes categorized into broad categories",
       "primary_key": [
@@ -201,9 +177,14 @@
           "description": "foreign key referencing studies.nct_id"
         },
         {
-          "name":"id",
-          "type":"integer",
-          "description":"foreign key referencing reported_events.result_group_id"
+          "name":"result_group_id",
+          "type":"character varying",
+          "description":"foreign key referencing reported_events.result_group_id. "
+        },
+        {
+          "name":"brand_name",
+          "type":"character varying",
+          "description":"Brand name for the drug"
         }
       ]
     },
@@ -535,7 +516,7 @@
         {
           "name": "name",
           "type": "character varying",
-          "description": "Pipe separated list of countries in which the trial was conducted."
+          "description": "Country in which the trial was conducted. Use full name and not country codes. EXCEPTION: Use 'United States'."
         },
         {
           "name": "removed",
@@ -627,7 +608,7 @@
         {
           "name": "outcome_type",
           "type": "character varying",
-          "description": "Possible values are primary, secondary, other and null"
+          "description": "Possible values are *case-sensitive*:primary, secondary, other and null"
         },
         {
           "name": "measure",
@@ -1154,50 +1135,6 @@
       ]
     },
     {
-      "name": "public.drug_result_groups",
-      "description": "Consolidated list of group titles/descriptions used for reporting summary results information only for those arms where the drug is used.",
-      "primary_key": [
-        "id"
-      ],
-      "columns": [
-        {
-          "name": "id",
-          "type": "integer",
-          "description": "primary key"
-        },
-        {
-          "name": "nct_id",
-          "type": "character varying",
-          "description": "foreign key referencing studies.nct_id"
-        },
-        {
-          "name": "ctgov_group_code",
-          "type": "character varying",
-          "description": null
-        },
-        {
-          "name": "result_type",
-          "type": "character varying",
-          "description": null
-        },
-        {
-          "name": "title",
-          "type": "character varying",
-          "description": null
-        },
-        {
-          "name": "description",
-          "type": "text",
-          "description": null
-        },
-        {
-          "name": "outcome_id",
-          "type": "integer",
-          "description": null
-        }
-      ]
-    },
-    {
       "name": "ctgov.sponsors",
       "description": "Name of study sponsors and collaborators. The sponsor is the entity or individual initiating the study. Collaborators are other organizations providing support, including funding, design, implementation, data analysis, and reporting.",
       "primary_key": [
@@ -1396,7 +1333,7 @@
         {
           "name": "overall_status",
           "type": "character varying",
-          "description": null
+          "description": "Possible values: COMPLETED, TERMINATED, ACTIVE_NOT_RECRUITING, SUSPENDED, RECRUITING"
         },
         {
           "name": "last_known_status",

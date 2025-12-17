@@ -17,7 +17,7 @@ from langgraph.checkpoint.memory import MemorySaver
 
 import plotly.express as px
 import plotly.io as pio
-import types
+
 from utils.helpers import split_payload_to_df,make_column_inventory,make_join_hints,clean_sql,validate_sql
 from utils.states import AgentState
 
@@ -38,6 +38,7 @@ def build_clinicaltrials_agent(
     safe_mode: bool = True,
     default_limit: int = 200,
     
+    
 ):
     """
     Build an agent that:
@@ -53,14 +54,264 @@ def build_clinicaltrials_agent(
 
     llm = ChatOpenAI(model=os.getenv("AACT_LLM_MODEL1", "gpt-4o"), temperature=0,api_key=st.secrets.get("openai_api_key"))
     llm_mini = ChatOpenAI(model=os.getenv("AACT_LLM_MODEL2", "gpt-4o-mini"), temperature=0,api_key=st.secrets.get("openai_api_key"))
-
+    llm_max = llm
     # -------- Nodes --------
+    def extract_trial_scope_node(state: AgentState,catalog) -> AgentState:
+        """
+        Dynamically extract explicit trial-level scope constraints
+        from the user question and merge them into active_trial_scope.
+
+        active_trial_scope is a LIST of constraint dicts:
+        [
+        { "field": str, "operator": str, "value": Any }
+        ]
+        """
+
+        llm = llm_mini 
+        
+        prev_scope = state.get("active_trial_scope", [])
+        
+        if not isinstance(prev_scope, list):
+            prev_scope = []
+
+        prompt = f"""
+    You are Clinical Trial expert extracting EXPLICIT clinical trial scope constraints
+    from a user question.
+
+    Refer to the Schema Catalog for information on the database.
+    - Use only tables/columns that appear in the SCHEMA CATALOG below.
+
+    ONLY extract constraints that are CLEARLY and EXPLICITLY stated.
+
+    Carefully check which column from the database is being referenced by the user question.
+
+    Each constraint MUST be returned as:
+    - field: a canonical database-level concept 
+    - operator: one of (=, !=, >, >=, <, <=, IN)
+    - value: a string, number, or list
+
+    DO NOT INCLUDE ANY scope constraints on 'brand_name'
+    If NO explicit scope constraints are present, return an empty list [].
+
+    User question:
+    {state["question"]}
+
+    Database Schema Catalog: {json.dumps(catalog)}
+
+    Return STRICT JSON ONLY as a LIST:
+    [
+    {{
+        "field": "<string>",
+        "operator": "<string>",
+        "value": <any>
+    }}
+    ]
+    """
+
+        resp = llm.invoke(prompt).content
+        resp = re.sub(r"^```(?:json)?|```$", "", resp.strip())
+
+        try:
+            extracted = json.loads(resp)
+            if not isinstance(extracted, list):
+                extracted = []
+        except Exception:
+            extracted = []
+
+       
+        # --- Merge dynamically (monotonic, field-based overwrite) ---
+        merged = { (c["field"]): c for c in prev_scope if "field" in c }
+
+        for c in extracted:
+            if not all(k in c for k in ("field", "operator", "value")):
+                continue
+            merged[c["field"]] = c  # overwrite only same-field constraint
+
+        state["active_trial_scope"] = list(merged.values())
+        
+        return state
+
+
+    def classify_trial_stage_node(state: AgentState) -> AgentState:
+        """
+        Classify the clinical trials query into:
+        - overview
+        - trial_details
+        - results
+        """
+
+        llm = llm_max  # cheap + deterministic
+
+        classify_prompt = f"""
+You are a ClinicalTrials.gov (AACT) expert whose task is to classify
+the INTENT of a user question about clinical trials.
+
+You MUST determine the DATA GRANULARITY being requested.
+
+Return ONLY ONE of the following labels (lowercase, exact match):
+- overview
+- trial_details
+- results
+
+--------------------
+HARD PRECEDENCE RULES (MUST FOLLOW)
+--------------------
+
+RULE 1 — RESULTS ARE EXPLICIT ONLY:
+You may return "results" ONLY IF the user EXPLICITLY asks for:
+- results
+- outcomes
+- endpoints
+- efficacy
+- safety
+- adverse events
+- comparisons between arms
+- outcome values
+
+If NONE of the above are explicitly mentioned,
+you MUST NOT return "results".
+
+--------------------
+
+RULE 2 — TRIAL DETAILS ARE STRUCTURAL:
+Return "trial_details" ONLY IF the user EXPLICITLY asks for:
+- arms
+- interventions
+- design groups
+- eligibility
+- inclusion/exclusion
+- dosing arms
+- randomization
+- trial design
+
+If NONE of the above are explicitly mentioned,
+you MUST NOT return "trial_details".
+
+--------------------
+
+RULE 3 — DEFAULT TO OVERVIEW:
+If the question does NOT meet the explicit criteria
+for "results" or "trial_details",
+you MUST return "overview".
+
+--------------------
+INTENT DEFINITIONS (FOR REFERENCE)
+--------------------
+
+overview:
+High-level, aggregated, or unspecified trial information.
+This includes:
+- "clinical trial data"
+- "trial data"
+- "clinical trials for <drug>"
+- counts, summaries, distributions
+
+trial_details:
+Structural trial-level information (no outcome values).
+
+results:
+Outcome-level or value-level trial results.
+
+--------------------
+IMPORTANT EXAMPLES
+--------------------
+
+"Give me clinical trial data for Bavencio" → overview
+"Clinical trials for Bavencio" → overview
+"How many trials exist for Bavencio?" → overview
+
+"Show trial arms for Bavencio" → trial_details
+"Eligibility criteria for Bavencio trials" → trial_details
+
+"Primary outcomes for Bavencio trials" → results
+"What did the Bavencio trials show?" → results
+"Safety results in Bavencio trials" → results
+
+--------------------
+USER QUESTION
+--------------------
+{state["question"]}
+
+Return ONLY the label.
+"""
+
+
+
+        resp = llm.invoke(classify_prompt).content.strip().lower()
+
+        if resp not in {"overview", "trial_details", "results"}:
+            resp = "overview"
+
+        state["trial_stage"] = resp
+        # print("trial stage")
+        # print(state["trial_stage"])
+        return state
+
+    def stage_prefix_prompt(stage: str) -> str:
+        if stage == "overview":
+            return """
+    You are generating an OVERVIEW-LEVEL clinical trials SQL query.
+
+    STRICT RULES:
+    - ALWAYS include the following columns: brand_name, nct_id, phase, overall_status, primary_completion_date
+    - DO NOT include:
+        - trial arms
+        - interventions
+        - outcomes
+        - outcome_measurements
+    """
+
+        if stage == "trial_details":
+            return """
+    You are generating a TRIAL-DETAILS clinical trials SQL query.
+
+    STRICT RULES:
+    - Return trial arms, interventions, design groups, eligibility
+    - DO NOT return outcome values or measurements
+    - If a list of trials is already available, FILTER to those nct_id values
+    """
+
+        if stage == "results":
+            return """
+    You are generating a RESULTS-LEVEL clinical trials SQL query.
+
+    STRICT RULES:
+    - ALWAYS use outcomes AND outcome_measurements tables
+    - NEVER scan all trials unless explicitly requested
+    - DO NOT return trial design information
+    - If available, FILTER using existing nct_id values
+    """
+
+        return ""
+
     
     def draft_sql_node(state: AgentState) -> AgentState:
         #print(state.get('drugs'))
-        SYSTEM_SQL = f"""You are an expert ClinicalTrials.gov (AACT) analyst who writes clean, safe PostgreSQL.
 
-Rules:
+        stage = state.get("trial_stage", "overview")
+
+        STAGE_PREFIX = stage_prefix_prompt(stage)
+        drugs_df = ""
+        if state.get("drugs") is not None:
+            drugs_df = split_payload_to_df(state.get("drugs")).to_records("records")
+
+        SYSTEM_SQL = f"""{STAGE_PREFIX}
+
+        You are an expert ClinicalTrials.gov (AACT) analyst who writes clean, safe PostgreSQL.
+
+        IMPORTANT CONTEXT & SCOPE RULES (MUST FOLLOW):
+
+- The list of drugs provided to you represents the ACTIVE and AUTHORITATIVE trial scope.
+- You MUST restrict all clinical trial queries to these drugs unless the user EXPLICITLY asks to change or expand the drug scope.
+- An ACTIVE TRIAL SCOPE with non-drug constraints is also provided.
+- You MUST apply ALL scope constraints to every query.
+- If the user asks a follow-up or drill-down question (e.g., outcomes, arms, phases) WITHOUT mentioning drugs, you MUST reuse the provided drug list.
+- You are NOT allowed to infer, assume, or expand to additional drugs or trial scope beyond the provided list.
+
+active drugs: {drugs_df}
+ACTIVE_SCOPE = {json.dumps(state.get("active_trial_scope", []), indent=2)}
+
+SQL query generation Rules:
 - Output ONE SQL query only (no commentary, no code fences).
 - Read-only: WITH/SELECT only; never DDL/DML or COPY.
 - ALWAYS CHECK data types of columns BEFORE joining tables.
@@ -129,6 +380,8 @@ Validator feedback:
     # -------- Graph wiring --------
     graph = StateGraph(AgentState)
     graph.add_node("entry",entry_node)
+    graph.add_node("extract_trial_scope",partial(extract_trial_scope_node,catalog=catalog))
+    graph.add_node("classify_trial_stage", classify_trial_stage_node)
     graph.add_node("draft_sql", draft_sql_node)
     graph.add_node("validate_sql", validate_sql_node)
     graph.add_node("revise_sql", revise_sql_node)
@@ -140,8 +393,10 @@ Validator feedback:
     graph.set_entry_point("entry")
     graph.add_conditional_edges("entry", decide_after_entry, {
         "plot": "plot",
-        "draft_sql": "draft_sql",
+        "draft_sql": "extract_trial_scope",
     })
+    graph.add_edge("extract_trial_scope","classify_trial_stage")
+    graph.add_edge("classify_trial_stage", "draft_sql")
     graph.add_edge("draft_sql", "validate_sql")
     graph.add_conditional_edges("validate_sql", decide_next_after_validate, {
         "revise_sql": "revise_sql",

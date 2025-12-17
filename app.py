@@ -43,8 +43,15 @@ if "chart_refresh" not in st.session_state:
 
 if "drugs" not in st.session_state:
     st.session_state.drugs = None
+
+if "active_trial_scope" not in st.session_state:
+    st.session_state.active_trial_scope = []
+
 if "criteria" not in st.session_state:
     st.session_state.criteria = None
+
+if "current_result" not in st.session_state:
+    st.session_state.current_result = None
 
 
 def hash_password(password):
@@ -146,14 +153,14 @@ q = st.text_area(
 orch = get_apps(default_limit=default_limit)
 
 
-img_bytes = orch.get_graph(xray=1).draw_mermaid_png()
+#img_bytes = orch.get_graph(xray=1).draw_mermaid_png()
 
 cfg = {"configurable": {"thread_id": st.session_state.thread_id}}
 
-with st.sidebar:
-    with st.expander("Workflow graph"):
-        st.image(img_bytes, caption="Workflow graph", use_container_width=True)
-    st.divider()
+# with st.sidebar:
+#     with st.expander("Workflow graph"):
+#         st.image(img_bytes, caption="Workflow graph", use_container_width=True)
+#     st.divider()
 
 
 if want_summary != st.session_state.last_want_summary:
@@ -168,7 +175,6 @@ if want_summary != st.session_state.last_want_summary:
                                 "call_source":"summary_toggle",
                                 "drugs": st.session_state.drugs,
                                 "criteria": st.session_state.criteria
-
                             }, config=cfg)
             st.session_state.current_result = out
         
@@ -204,7 +210,8 @@ if st.button("Run", type="primary"):
                             "chat_history": st.session_state.messages[-5:],
                             "call_source":"database",
                             "drugs":st.session_state.drugs,
-                            "criteria": st.session_state.criteria
+                            "criteria": st.session_state.criteria,
+                            "active_trial_scope": st.session_state.active_trial_scope
 
                         }, config=cfg)
         st.session_state.current_result = out
@@ -212,6 +219,8 @@ if st.button("Run", type="primary"):
         st.session_state.chart_refresh = True
         st.session_state.drugs = out.get('drugs')
         st.session_state.criteria = out.get('criteria')
+        st.session_state.active_trial_scope = out.get('active_trial_scope')
+        #st.session_state.aact_df
 
 out = st.session_state.get("current_result")
 if out:

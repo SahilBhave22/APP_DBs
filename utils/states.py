@@ -9,6 +9,8 @@ class OrchestratorState(TypedDict, total=False):
     #classes : Optional[List[str]]
     criteria : Optional[List[str]]
     companies : Optional[List[str]]
+    user_criteria_changed: Optional[bool]
+    
     want_summary:bool
     want_chart : bool
     call_source: Optional[str]
@@ -31,6 +33,7 @@ class OrchestratorState(TypedDict, total=False):
     aact_sql: Optional[str]
     aact_df: Optional[Dict[str, Any]] 
     aact_error: Optional[str]
+    active_trial_scope: Optional[Any]
 
     # PRICING artifacts
     pricing_sql: Optional[str]
@@ -65,3 +68,5 @@ class AgentState(TypedDict):
     call_source: Optional[str]
     drugs: Optional[List[str]]
     criteria : Optional[List[str]]
+    trial_stage : Optional[str] 
+    active_trial_scope: Optional[Any]
