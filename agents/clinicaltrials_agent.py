@@ -353,6 +353,7 @@ Guidance for comparative queries
     - Preserve deduplication (e.g., COUNT(DISTINCT nct_id)) as usual.
 For adverse events relates queries:
     - Always return only the top 5 adverse event terms per trial by number of subjects affected.
+    - Always get data by brand name.
 - Default LIMIT {default_limit} unless the user asks for more.
 - Keep the query readable and minimal (CTEs encouraged).
 - DO NOT AGGREGATE or AVERAGE any values unless specifically asked.
