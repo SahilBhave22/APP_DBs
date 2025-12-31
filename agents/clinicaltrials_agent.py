@@ -216,16 +216,16 @@ Outcome-level or value-level trial results.
 IMPORTANT EXAMPLES
 --------------------
 
-"Give me clinical trial data for Bavencio" → overview
-"Clinical trials for Bavencio" → overview
-"How many trials exist for Bavencio?" → overview
+"Give me clinical trial data for <drug>" → overview
+"Clinical trials for <drug>" → overview
+"How many trials exist for <drug>?" → overview
 
-"Show trial arms for Bavencio" → trial_details
-"Eligibility criteria for Bavencio trials" → trial_details
+"Show trial arms for <drug>" → trial_details
+"Eligibility criteria for <drug> trials" → trial_details
 
-"Primary outcomes for Bavencio trials" → results
-"What did the Bavencio trials show?" → results
-"Safety results in Bavencio trials" → results
+"Primary outcomes for <drug> trials" → results
+"What did the Bavencio <drug> show?" → results
+"Safety results in <drug> trials" → results
 
 --------------------
 USER QUESTION
@@ -243,8 +243,7 @@ Return ONLY the label.
             resp = "overview"
 
         state["trial_stage"] = resp
-        # print("trial stage")
-        # print(state["trial_stage"])
+        
         return state
 
     def stage_prefix_prompt(stage: str) -> str:

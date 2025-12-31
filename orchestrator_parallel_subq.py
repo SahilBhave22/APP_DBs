@@ -90,13 +90,14 @@ def drug_detector(state: OrchestratorState) -> OrchestratorState:
     return state
 
 def decide_next_after_entry(state: OrchestratorState) -> Literal["router", "get_relevant_drugs"]:
-        # print(len(split_payload_to_df(state['drugs'])))
-        # if "faers_df" in state or "aact_df" in state or "pricing_df" in state or (state['drugs'] is not None and len(state['drugs'])>0):
-        #     return "router"
-        # else:
-        #     return "get_relevant_drugs"
+        
         
         if state.get('user_criteria_changed'):
+            if((state.get('criteria') is None or len(state.get('criteria')) ==0) and
+               (state.get('companies') is None or len(state.get('companies'))==0)):
+                
+                return "router"
+            
             return "get_relevant_drugs"
         else:
             return "router"
