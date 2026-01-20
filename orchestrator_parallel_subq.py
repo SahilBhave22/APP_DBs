@@ -152,7 +152,7 @@ Return STRICT JSON only.
     selected_companies = [f"%{m.lower().strip()}%" for m in out.get("selected_drug_companies")]
 
     # print(selected_classes)
-    # print(selected_indications)
+    print(selected_indications)
 
     if len(selected_classes)>0:
         where_clauses.append(
