@@ -52,9 +52,9 @@ def build_clinicaltrials_agent(
     
 
 
-    llm = ChatOpenAI(model=os.getenv("AACT_LLM_MODEL1", "gpt-4o"), temperature=0,api_key=st.secrets.get("openai_api_key"))
-    llm_mini = ChatOpenAI(model=os.getenv("AACT_LLM_MODEL2", "gpt-4o-mini"), temperature=0,api_key=st.secrets.get("openai_api_key"))
-    llm_max = llm
+    llm = ChatOpenAI(model=os.getenv("AACT_LLM_MODEL1", "gpt-4.1"), temperature=0,api_key=st.secrets.get("openai_api_key"))
+    llm_mini = ChatOpenAI(model=os.getenv("AACT_LLM_MODEL2", "gpt-4.1-mini"), temperature=0,api_key=st.secrets.get("openai_api_key"))
+    llm_max = ChatOpenAI(model=os.getenv("AACT_LLM_MODEL4", "gpt-4.1-mini"), temperature=0,api_key=st.secrets.get("openai_api_key"))
     # -------- Nodes --------
     def extract_trial_scope_node(state: AgentState,catalog) -> AgentState:
         """
@@ -140,7 +140,7 @@ def build_clinicaltrials_agent(
         - results
         """
 
-        llm = llm_max  # cheap + deterministic
+          # cheap + deterministic
 
         classify_prompt = f"""
 You are a ClinicalTrials.gov (AACT) expert whose task is to classify
@@ -152,6 +152,39 @@ Return ONLY ONE of the following labels (lowercase, exact match):
 - overview
 - trial_details
 - results
+
+--------------------
+IMPORTANT EXAMPLES
+--------------------
+
+"Give me clinical trial data for <drug>" → overview
+"Clinical trials for <drug>" → overview
+"How many trials exist for <drug>?" → overview
+
+"Show trial arms for <drug>" → trial_details
+"Eligibility criteria for <drug> trials" → trial_details
+
+"Primary outcomes for <drug> trials" → results
+"What did the <drug> show?" → results
+"Safety results in <drug> trials" → results
+
+--------------------
+INTENT DEFINITIONS (FOR REFERENCE)
+--------------------
+
+overview:
+High-level, aggregated, or unspecified trial information.
+This includes:
+- "clinical trial data"
+- "trial data"
+- "clinical trials for <drug>"
+- counts, summaries, distributions
+
+trial_details:
+Structural trial-level information (no outcome values).
+
+results:
+Outcome-level or value-level trial results.
 
 --------------------
 HARD PRECEDENCE RULES (MUST FOLLOW)
@@ -187,6 +220,8 @@ Return "trial_details" ONLY IF the user EXPLICITLY asks for:
 If NONE of the above are explicitly mentioned,
 you MUST NOT return "trial_details".
 
+DO NOT interpret the phrases "clinical trial data for <drug>" as a trial details requirement.
+
 --------------------
 
 RULE 3 — DEFAULT TO OVERVIEW:
@@ -194,38 +229,7 @@ If the question does NOT meet the explicit criteria
 for "results" or "trial_details",
 you MUST return "overview".
 
---------------------
-INTENT DEFINITIONS (FOR REFERENCE)
---------------------
 
-overview:
-High-level, aggregated, or unspecified trial information.
-This includes:
-- "clinical trial data"
-- "trial data"
-- "clinical trials for <drug>"
-- counts, summaries, distributions
-
-trial_details:
-Structural trial-level information (no outcome values).
-
-results:
-Outcome-level or value-level trial results.
-
---------------------
-IMPORTANT EXAMPLES
---------------------
-
-"Give me clinical trial data for <drug>" → overview
-"Clinical trials for <drug>" → overview
-"How many trials exist for <drug>?" → overview
-
-"Show trial arms for <drug>" → trial_details
-"Eligibility criteria for <drug> trials" → trial_details
-
-"Primary outcomes for <drug> trials" → results
-"What did the Bavencio <drug> show?" → results
-"Safety results in <drug> trials" → results
 
 --------------------
 USER QUESTION
@@ -237,8 +241,8 @@ Return ONLY the label.
 
 
 
-        resp = llm.invoke(classify_prompt).content.strip().lower()
-
+        resp = llm_max.invoke(classify_prompt).content.strip().lower()
+        print(resp)
         if resp not in {"overview", "trial_details", "results"}:
             resp = "overview"
 
@@ -284,7 +288,7 @@ Return ONLY the label.
         return ""
 
     
-    def draft_sql_node(state: AgentState) -> AgentState:
+    def draft_sql_node(state: AgentState,catalog) -> AgentState:
         #print(state.get('drugs'))
 
         stage = state.get("trial_stage", "overview")
@@ -382,7 +386,7 @@ Validator feedback:
     graph.add_node("entry",entry_node)
     graph.add_node("extract_trial_scope",partial(extract_trial_scope_node,catalog=catalog))
     graph.add_node("classify_trial_stage", classify_trial_stage_node)
-    graph.add_node("draft_sql", draft_sql_node)
+    graph.add_node("draft_sql", partial(draft_sql_node,catalog=catalog))
     graph.add_node("validate_sql", validate_sql_node)
     graph.add_node("revise_sql", revise_sql_node)
     graph.add_node("run_sql", partial(run_sql_node,db_key='aact'))

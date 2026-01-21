@@ -14,7 +14,7 @@
         {
           "name": "nct_id",
           "type": "character varying",
-          "description": "foreign key referencing studies.nct_id"
+          "description": "foreign key referencing ctgov.studies.nct_id"
         },
         {
           "name": "brand_name",
@@ -33,7 +33,7 @@
         {
           "name": "nct_id",
           "type": "character varying",
-          "description": "foreign key referencing studies.nct_id"
+          "description": "foreign key referencing ctgov.studies.nct_id"
         },
         {
           "name": "brand_name",
@@ -67,7 +67,7 @@
         {
           "name": "nct_id",
           "type": "character varying",
-          "description": "foreign key referencing studies.nct_id"
+          "description": "foreign key referencing ctgov.studies.nct_id"
         },
         {
           "name": "brand_name",
@@ -1178,7 +1178,7 @@
         {
           "name": "nct_id",
           "type": "character varying",
-          "description": "foreign key referencing studies.nct_id"
+          "description": "Trial ID"
         },
         {
           "name": "study_first_submitted_date",
