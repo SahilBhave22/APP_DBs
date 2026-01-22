@@ -7,6 +7,7 @@ from urllib.parse import quote_plus
 from agents.fdaers_agent import build_fdaers_agent
 from agents.clinicaltrials_agent import build_clinicaltrials_agent
 from agents.pricing_agent import build_pricing_agent
+from agents.marketaccess_agent import build_marketaccess_agent
 from orchestrator_parallel_subq import build_orchestrator_parallel_subq
 from IPython.display import Image
 import plotly.io as pio
@@ -125,12 +126,16 @@ def get_apps(default_limit:int):
     faers_catalog = load_json("faers_schema_catalog", "faers_schema_catalog.json")
     aact_catalog  = load_json("clinicaltrials_schema_catalog",  "aact_schema_catalog.json")
     pricing_catalog  = load_json("pricing_schema_catalog",  "pricing_schema_catalog.json")
+    marketaccess_catalog  = load_json("marketaccess_schema_catalog",  "marketaccess_schema_catalog.json")
+
     aact_sample_queries = load_json("clinicaltrials_sample_queries",  "clinicaltrials_sample_queries.json")
 
     faers_app = build_fdaers_agent(catalog = faers_catalog,default_limit=default_limit)
     aact_app  = build_clinicaltrials_agent(aact_catalog,  aact_sample_queries,default_limit=default_limit)
     pricing_app  = build_pricing_agent(pricing_catalog,  default_limit=default_limit,safe_mode=safe_mode)
-    orch_app  = build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app)
+    marketaccess_app  = build_marketaccess_agent(marketaccess_catalog,  default_limit=default_limit,safe_mode=safe_mode)
+
+    orch_app  = build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app, marketaccess_app)
     
     return orch_app
 
@@ -295,6 +300,24 @@ if out:
         if out.get("pricing_error"):
             st.error(f"PRICING error: {out['pricing_error']}")
 
+        st.divider()
+
+        st.subheader("Market Access")
+        if out.get("ma_df"):
+            mdf = split_payload_to_df(out["ma_df"])
+            with st.expander("Market Access data"):
+                st.caption(f"{len(mdf):,} rows · {mdf.shape[1]} cols")
+                st.dataframe(mdf.head(default_limit), use_container_width=True, hide_index=True)
+                st.download_button("Download Market Access CSV", mdf.to_csv(index=False).encode("utf-8"), "marketaccess_results.csv", use_container_width=True)
+        if out.get("ma_sql"):
+            with st.expander("Market Access SQL query"):
+                st.code(out["ma_sql"], language="sql")
+        if out.get("ma_sql_explain"):
+            with st.expander("Market Access SQL Explained"):
+                st.text(out["ma_sql_explain"])
+        if out.get("ma_error"):
+            st.error(f"Market Access error: {out['ma_error']}")
+
     # Main pane: router rationale + summary
     st.caption(out.get("router_rationale") or "No router rationale")
 
@@ -306,7 +329,7 @@ if out:
     if want_chart:
         st.session_state.chart_refresh = False
         st.subheader("Data Chart")
-        ftab, atab,ptab = st.tabs(["FAERS", "Clinical Trials","Pricing"])
+        ftab, atab,ptab,mtab = st.tabs(["FAERS", "Clinical Trials","Pricing","Market Access"])
         with ftab:
             if out.get("faers_figure_json"):
                 fig = pio.from_json(out["faers_figure_json"])
@@ -331,4 +354,13 @@ if out:
                 st.info(out["chart_error"])
             else:
                 st.markdown("_No Chart Produced_")
+        with mtab:
+            if out.get("ma_figure_json"):
+                fig = pio.from_json(out["ma_figure_json"])
+                st.plotly_chart(fig, use_container_width=True)
+            elif out.get("ma_chart_error"):
+                st.info(out["chart_error"])
+            else:
+                st.markdown("_No Chart Produced_")
+
 

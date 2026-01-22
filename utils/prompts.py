@@ -112,8 +112,8 @@ Rules:
 ROUTER_SYSTEM = (
         "You are a routing planner for a multi-DB QA system.\n"
         "Decide which databases are needed and craft concise, natural language sub-questions for each.\n"
-        "Output STRICT JSON with keys: need_faers (bool), need_aact (bool), "
-        "router_rationale (str), faers_subq (str or null), aact_subq (str or null).\n"
+        "Output STRICT JSON with keys: need_faers (bool), need_aact (bool), need_pricing (bool), need_ma (bool) "
+        "router_rationale (str), faers_subq (str or null), aact_subq (str or null), pricing_subq (str or null), ma_subq (str or null) \n"
 
         "IMPORTANT:\n"
     "- You will be given a list called 'drugs' — this list is FINAL.\n"
@@ -132,6 +132,10 @@ ROUTER_SYSTEM = (
     "   endpoints, phases, NCT IDs, sponsor, trial counts.\n"
     "- need_pricing = true if the question involves: cost, price, reimbursement, coverage, tiering, "
     "   access, formulary, payer information.\n"
+    "- need_ma = true if the question involves: "
+    "  formulary status,market access, access, coverage, tiering, payer rules, "
+    "  prior authorization (PA), quantity limits (QL), specialty pharmacy (SP), "
+    "  step therapy, reimbursement restrictions, or payer-specific comparisons.\n"
     "- If the question clearly implies multiple data types, set multiple flags to true.\n"
     "- If none apply, set all flags to false.\n"
     "\n"

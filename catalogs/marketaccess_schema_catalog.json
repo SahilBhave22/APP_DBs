@@ -1,0 +1,61 @@
+{
+  "dialect": "postgresql",
+  "description": "Market access formulary snapshot tables for 2025 and 2026. Wide payer-based schema joined via brand_name.",
+  "tables": [
+    {
+      "name": "mapped_access_2025",
+      "description": "Market access coverage data for 2025 across major US payers.",
+      "primary_key": ["brand_name"],
+      "columns": [
+        { "name": "brand_name", "type": "text", "description": "Brand name of the drug (joinable with FAERS drug_cases.brand_name)." },
+        { "name": "generic_name", "type": "text", "description": "Generic name of the drug." },
+
+        { "name": "aetna_tier", "type": "numeric", "description": "Aetna formulary tier." },
+        { "name": "aetna_req", "type": "text", "description": "Aetna utilization management requirements (PA, QL, SP, etc.)." },
+
+        { "name": "cigna_tier", "type": "numeric", "description": "Cigna formulary tier." },
+        { "name": "cigna_req", "type": "text", "description": "Cigna utilization management requirements." },
+
+        { "name": "united_tier", "type": "numeric", "description": "UnitedHealthcare formulary tier." },
+        { "name": "united_req", "type": "text", "description": "UnitedHealthcare utilization management requirements." },
+
+        { "name": "kaiser_tier", "type": "numeric", "description": "Kaiser Permanente formulary tier." },
+        { "name": "kaiser_req", "type": "text", "description": "Kaiser Permanente utilization management requirements." },
+
+        { "name": "optum_tier", "type": "numeric", "description": "OptumRx formulary tier." },
+        { "name": "optum_req", "type": "text", "description": "OptumRx utilization management requirements." },
+
+        { "name": "anthem_tier", "type": "numeric", "description": "Anthem formulary tier." },
+        { "name": "anthem_req", "type": "text", "description": "Anthem utilization management requirements." }
+      ]
+    },
+    {
+      "name": "mapped_access_2026",
+      "description": "Market access coverage data for 2026 across major US payers.",
+      "primary_key": ["brand_name"],
+      "columns": [
+        { "name": "brand_name", "type": "text", "description": "Brand name of the drug (joinable with FAERS drug_cases.brand_name)." },
+        { "name": "generic_name", "type": "text", "description": "Generic name of the drug." },
+
+        { "name": "aetna_tier", "type": "numeric", "description": "Aetna formulary tier." },
+        { "name": "aetna_req", "type": "text", "description": "Aetna utilization management requirements (PA, QL, SP, etc.)." },
+
+        { "name": "cigna_tier", "type": "numeric", "description": "Cigna formulary tier." },
+        { "name": "cigna_req", "type": "text", "description": "Cigna utilization management requirements." },
+
+        { "name": "united_tier", "type": "numeric", "description": "UnitedHealthcare formulary tier." },
+        { "name": "united_req", "type": "text", "description": "UnitedHealthcare utilization management requirements." },
+
+        { "name": "kaiser_tier", "type": "numeric", "description": "Kaiser Permanente formulary tier." },
+        { "name": "kaiser_req", "type": "text", "description": "Kaiser Permanente utilization management requirements." },
+
+        { "name": "optum_tier", "type": "numeric", "description": "OptumRx formulary tier." },
+        { "name": "optum_req", "type": "text", "description": "OptumRx utilization management requirements." },
+
+        { "name": "anthem_tier", "type": "numeric", "description": "Anthem formulary tier." },
+        { "name": "anthem_req", "type": "text", "description": "Anthem utilization management requirements." }
+      ]
+    }
+  
+  ]
+}

@@ -26,6 +26,7 @@ class Signals:
     faers_terms: list[str]
     aact_terms: list[str]
     pricing_terms: list[str]
+    ma_terms: List[str]
 
 def default_signals() -> Signals:
     return Signals(
@@ -45,6 +46,9 @@ def default_signals() -> Signals:
         pricing_terms=[
             "pricing","annual price", "cycle","price change"
         ],
+        ma_terms=[
+            "access","coverage", "tier","payer"
+        ]
     )
 
 
@@ -188,7 +192,8 @@ def router_node(state: OrchestratorState) -> OrchestratorState:
         return {
             "need_faers": state.get('faers_df') is not None,
             "need_aact": state.get('aact_df') is not None,
-            "need_pricing": state.get('pricing_df') is not None
+            "need_pricing": state.get('pricing_df') is not None,
+            "need_ma": state.get('ma_df') is not None
         }
     
     llm = ChatOpenAI(model="gpt-4o", temperature=0)
@@ -205,16 +210,19 @@ Current user question:
 FAERS hints: {", ".join(sig.faers_terms)}
 AACT hints: {", ".join(sig.aact_terms)}
 PRICING hints: {", ".join(sig.pricing_terms)}
+MARKET ACCESS hints: {", ".join(sig.ma_terms)}
 
 Return JSON ONLY NO TRAILING CHARACTERS:
 {{
   "need_faers": <bool>,
   "need_aact": <bool>,
   "need_pricing": <bool>,
+  "need_ma": <bool>
   "router_rationale": "<string>",
   "faers_subq": "<string or null>",
   "aact_subq": "<string or null>",
   "pricing_subq": "<string or null>"
+  "ma_subq": "<string or null>"
 }}
 """
     try:
@@ -227,10 +235,12 @@ Return JSON ONLY NO TRAILING CHARACTERS:
             "need_faers": False,
             "need_aact": False,
             "need_pricing": False,
+            "need_ma": False,
             "router_rationale": "Fallback: parse error; defaulting to None",
             "faers_subq": None,
             "aact_subq": None,
-            "pricing_subq": None
+            "pricing_subq": None,
+            "ma_subq": None
         }
 
     #print(data.get("drugs"))
@@ -239,17 +249,19 @@ Return JSON ONLY NO TRAILING CHARACTERS:
         "need_faers": bool(data.get("need_faers", False)),
         "need_aact": bool(data.get("need_aact", False)),
         "need_pricing": bool(data.get("need_pricing", False)),
+        "need_ma": bool(data.get("need_ma", False)),
         "router_rationale": data.get("router_rationale", ""),
         "faers_subq": data.get("faers_subq") if data.get("faers_subq") is not None else state.get('faers_subq'),
         "aact_subq": data.get("aact_subq") if data.get("aact_subq") is not None else state.get('aact_subq'),
         "pricing_subq": data.get("pricing_subq") if data.get("pricing_subq") is not None else state.get('pricing_subq'),
+        "ma_subq": data.get("ma_subq") if data.get("ma_subq") is not None else state.get('ma_subq')    
     }
 
 
 
 
 # ---------- Orchestrator builder (wire in your compiled agent apps) ----------
-def build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app):
+def build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app,ma_app):
     """
     faers_app / aact_app are your compiled LangGraph agent apps from build_agent(...),
     which take {"question", "sql", "error", "attempts", "summary", "df"} and return with df/sql/error filled.
@@ -329,6 +341,30 @@ def build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app):
                 "pricing_error": out.get("error"), "pricing_sql_explain":out.get("sql_explain")}
 
 
+    @traceable(name="MARKET ACCESS Agent")
+    def call_marketaccess(state: OrchestratorState,config) -> OrchestratorState:
+        if not state.get("need_ma") or state.get("call_source")=="summary_toggle":
+            return {}
+        
+        subq = state.get("ma_subq") or state["question"]
+        want_chart = state.get("want_chart")
+
+        if state.get("call_source") == "chart_toggle":
+            s_in = {"question": subq, "df":state.get("ma_df"),"drugs":state.get("drugs"),
+                    "want_chart":want_chart,"call_source":state.get("call_source")}
+            
+            out = ma_app.invoke(s_in,config = config)
+            return {"ma_figure_json":out.get("figure_json")}
+        
+        s_in = {"question": subq, "sql": None, "error": None, "want_chart":want_chart,
+                "attempts": 0, "summary": None, "df": None,"sql_explain":None,"call_source":state.get("call_source"),
+                "drugs":state.get('drugs'),
+                "criteria":state.get('criteria')}
+        out = ma_app.invoke(s_in,config = config)
+        
+        return {"ma_sql": out.get("sql"), "ma_df": out.get("df"), "ma_figure_json":out.get("figure_json"),
+                "ma_error": out.get("error"), "ma_sql_explain":out.get("sql_explain")}
+
     def gather_node(state: OrchestratorState) -> OrchestratorState:
         # Barrier; nothing to compute—just ensures both agent branches completed.
         return {}
@@ -355,8 +391,9 @@ def build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app):
         f_df = split_payload_to_df(state.get("faers_df"))
         a_df = split_payload_to_df(state.get("aact_df"))
         p_df = split_payload_to_df(state.get("pricing_df"))
+        m_df = split_payload_to_df(state.get("ma_df"))
 
-        fmeta, ameta, pmeta = meta(f_df), meta(a_df), meta(p_df)
+        fmeta, ameta, pmeta, mmeta = meta(f_df), meta(a_df), meta(p_df), meta(m_df)
 
         drugs_df = ""
         if state.get("drugs") is not None:
@@ -413,8 +450,9 @@ Produce a coherent summary (~200–300 words) for this chunk only.
         faers_summaries = process_source(f_df, "FAERS")
         aact_summaries = process_source(a_df, "AACT")
         pricing_summaries = process_source(p_df, "PRICING")
+        marketaccess_summaries = process_source(m_df, "MARKETACCESS")
 
-        all_summaries = faers_summaries + aact_summaries + pricing_summaries
+        all_summaries = faers_summaries + aact_summaries + pricing_summaries + marketaccess_summaries
 
         prompt_final = f"""
 You are a senior pharma / clinical trial / safety data analyst.
@@ -434,6 +472,7 @@ Drugs:
 FAERS Meta: {fmeta}
 AACT Meta: {ameta}
 PRICING Meta: {pmeta}
+MARKETACCESS Meta: {mmeta}
 
 Chat History:
 {hist_str}
@@ -464,6 +503,7 @@ Chunk Summaries:
     graph.add_node("faers", call_faers)
     graph.add_node("aact", call_aact)
     graph.add_node("pricing", call_pricing)
+    graph.add_node("marketaccess", call_marketaccess)
     graph.add_node("gather", gather_node)
     graph.add_node("summarize", summarize_node)
     #graph.add_node("plot",plot_node)
@@ -481,11 +521,13 @@ Chunk Summaries:
     graph.add_edge("router", "faers")
     graph.add_edge("router", "aact")
     graph.add_edge("router", "pricing")
+    graph.add_edge("router", "marketaccess")
 
     # Join
     graph.add_edge("faers", "gather")
     graph.add_edge("aact", "gather")
     graph.add_edge("pricing", "gather")
+    graph.add_edge("marketaccess", "gather")
 
     # Summarize
     graph.add_edge("gather", "summarize")
