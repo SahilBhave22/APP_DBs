@@ -152,7 +152,7 @@ Return STRICT JSON only.
     selected_companies = [f"%{m.lower().strip()}%" for m in out.get("selected_drug_companies")]
 
     # print(selected_classes)
-    print(selected_indications)
+    #print(selected_indications)
 
     if len(selected_classes)>0:
         where_clauses.append(
@@ -175,7 +175,7 @@ Return STRICT JSON only.
     
     drugs_query += "\n" + "\n".join(where_clauses)
 
-    # print(drugs_query)
+    #print(drugs_query)
     drugs_list = exec_sql(drugs_query,db_key="drugs",params = params)
     #print(drugs_list)
     state["drugs"] = df_to_split_payload(drugs_list)
