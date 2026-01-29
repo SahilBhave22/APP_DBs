@@ -18,7 +18,7 @@ from google.oauth2 import service_account
 from google.cloud.sql.connector import Connector, IPTypes
 #import sqlalchemy
 import uuid
-from utils.helpers import split_payload_to_df
+from utils.helpers import split_payload_to_df,make_market_access_multiindex
 from PIL import Image
 from io import BytesIO
 import base64
@@ -305,9 +305,15 @@ if out:
         st.subheader("Market Access")
         if out.get("ma_df"):
             mdf = split_payload_to_df(out["ma_df"])
+            mdf = make_market_access_multiindex(mdf)
             with st.expander("Market Access data"):
                 st.caption(f"{len(mdf):,} rows · {mdf.shape[1]} cols")
-                st.dataframe(mdf.head(default_limit), use_container_width=True, hide_index=True)
+                mdf = mdf.reindex(level=0)
+                st.dataframe(
+                    mdf.head(default_limit),
+                    use_container_width=True,
+                    hide_index=True
+                )
                 st.download_button("Download Market Access CSV", mdf.to_csv(index=False).encode("utf-8"), "marketaccess_results.csv", use_container_width=True)
         if out.get("ma_sql"):
             with st.expander("Market Access SQL query"):

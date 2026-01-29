@@ -72,3 +72,28 @@ def validate_sql(sql: str) -> Optional[str]:
         return "Parameters are not allowed. Inline all literal values (no :param, @param, $1, ?)."
 
     return None
+
+
+import pandas as pd
+
+def make_market_access_multiindex(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Converts flat payer columns into a 2-level header:
+    Level 0: payer name
+    Level 1: tier / req
+    """
+    new_cols = []
+
+    for col in df.columns:
+        if col in ["brand_name", "generic_name"]:
+            new_cols.append((col, ""))  # keep metadata columns flat
+        else:
+            payer, metric = col.split("_", 1)
+            new_cols.append((payer.capitalize(), metric))
+
+    df.columns = pd.MultiIndex.from_tuples(
+        new_cols,
+        names=["payer", "field"]
+    )
+
+    return df

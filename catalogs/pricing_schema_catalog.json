@@ -3,7 +3,7 @@
   "description": "Pricing Schema Catalog",
   "tables": [
     {
-      "name": "pricing_calculations_tablets",
+      "name": "pricing_calculations_all",
       "description": "Pricing Data for brand names",
       "primary_key": [
         "ndc"
