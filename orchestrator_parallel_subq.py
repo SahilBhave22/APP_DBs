@@ -95,7 +95,13 @@ def drug_detector(state: OrchestratorState) -> OrchestratorState:
 
 def decide_next_after_entry(state: OrchestratorState) -> Literal["router", "get_relevant_drugs"]:
         
+        if('pipeline' in state.get("question")):
+            #state["drugs"] = None
+            return "router"
         
+        if(state.get('call_source')!= 'database'):
+            return "router"
+
         if state.get('user_criteria_changed'):
             if((state.get('criteria') is None or len(state.get('criteria')) ==0) and
                (state.get('companies') is None or len(state.get('companies'))==0)):

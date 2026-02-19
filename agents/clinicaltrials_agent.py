@@ -52,7 +52,7 @@ def build_clinicaltrials_agent(
     
 
 
-    llm = ChatOpenAI(model=os.getenv("AACT_LLM_MODEL1", "gpt-4.1"), temperature=0,api_key=st.secrets.get("openai_api_key"))
+    llm_default = ChatOpenAI(model=os.getenv("AACT_LLM_MODEL1", "gpt-4.1"), temperature=0,api_key=st.secrets.get("openai_api_key"))
     llm_mini = ChatOpenAI(model=os.getenv("AACT_LLM_MODEL2", "gpt-4.1-mini"), temperature=0,api_key=st.secrets.get("openai_api_key"))
     llm_max = ChatOpenAI(model=os.getenv("AACT_LLM_MODEL4", "gpt-4.1-mini"), temperature=0,api_key=st.secrets.get("openai_api_key"))
     # -------- Nodes --------
@@ -67,9 +67,18 @@ def build_clinicaltrials_agent(
         ]
         """
 
-        llm = llm_mini 
+        llm = llm_default
         
         prev_scope = state.get("active_trial_scope", [])
+
+        with open("catalogs/pipeline_schema_catalog.json", "r", encoding="utf-8") as f:
+                pipeline_json =  json.load(f)
+        pipeline_companies = pipeline_json.get("sponsor_values", [])
+        pipeline_conditions = pipeline_json.get("condition_values", [])
+
+        # Format nicely for prompt readability
+        sponsor_block = "\n".join(f"- {c}" for c in pipeline_companies)
+        condition_block = "\n".join(f"- {c}" for c in pipeline_conditions)
         
         if not isinstance(prev_scope, list):
             prev_scope = []
@@ -97,6 +106,12 @@ def build_clinicaltrials_agent(
     {state["question"]}
 
     Database Schema Catalog: {json.dumps(catalog)}
+
+    IMPORTANT RULES FOR SPONSOR COMPANY AND CONDITION fields:
+    - If the question mentions a company, ONLY use the field "sponsor_name" and nothing else
+    - For company names, STRICTLY SELECT AN EXACT VALUE MATCH from this list: {sponsor_block}
+    - If the question mentions a condition or a disease are, ONLY use the field "downcase_mesh_term" and nothing else.
+    - For condition names, STRICTLY SELECT AN EXACT VALUE MATCH from this list: {condition_block}
 
     Return STRICT JSON ONLY as a LIST:
     [
@@ -128,19 +143,15 @@ def build_clinicaltrials_agent(
             merged[c["field"]] = c  # overwrite only same-field constraint
 
         state["active_trial_scope"] = list(merged.values())
-        
+        print(state["active_trial_scope"])
         return state
 
 
     def classify_trial_stage_node(state: AgentState) -> AgentState:
-        """
-        Classify the clinical trials query into:
-        - overview
-        - trial_details
-        - results
-        """
-
-          # cheap + deterministic
+        
+        if('pipeline' in state['question']):
+            state['trial_stage'] = "pipeline"
+            return state
 
         classify_prompt = f"""
 You are a ClinicalTrials.gov (AACT) expert whose task is to classify
@@ -251,6 +262,7 @@ Return ONLY the label.
         return state
 
     def stage_prefix_prompt(stage: str) -> str:
+    
         if stage == "overview":
             return """
     You are generating an OVERVIEW-LEVEL clinical trials SQL query.
@@ -293,26 +305,83 @@ Return ONLY the label.
 
         stage = state.get("trial_stage", "overview")
 
-        STAGE_PREFIX = stage_prefix_prompt(stage)
-        drugs_df = ""
-        if state.get("drugs") is not None:
-            drugs_df = split_payload_to_df(state.get("drugs")).to_records("records")
+        is_pipeline = 'pipeline' in state['question']
+        #print(is_pipeline)
+        if is_pipeline:
+            STAGE_PREFIX = ""
+        else:
+            STAGE_PREFIX = stage_prefix_prompt(stage)
+
+
+        if(is_pipeline):
+            with open("catalogs/pipeline_schema_catalog.json", "r", encoding="utf-8") as f:
+                pipeline_json =  json.load(f)
+            pipeline_companies = pipeline_json.get("sponsor_values", [])
+            pipeline_conditions = pipeline_json.get("condition_values", [])
+
+            # Format nicely for prompt readability
+            sponsor_block = "\n".join(f"- {c}" for c in pipeline_companies)
+            condition_block = "\n".join(f"- {c}" for c in pipeline_conditions)
+            SCOPE_BLOCK = f"""
+IMPORTANT CONTEXT & SCOPE RULES (PIPELINE MODE):
+
+- This is a PIPELINE query.
+- ALWAYS use public.onco_pipeline_trials as the BASE table.
+- NEVER use public.drug_trials.
+- There is NO active drug list.
+
+STRICTLY USE SPONSOR COMPANY VALUES from this list (must use EXACT match):
+{sponsor_block}
+
+STRICTLY USE DISEASE AREA VALUES from this list (must use EXACT match):
+{condition_block}
+
+Mapping Rules:
+- If the user uses abbreviations (e.g., AZ, BMS, JNJ), map to the correct sponsor company above.
+- If the user uses acronyms (e.g., NSCLC), map to the correct disease above.
+- You MUST choose values ONLY from the lists above.
+- Use exact equality filters:
+    sponsor = '<exact_value>'
+    disease_area = '<exact_value>'
+- DO NOT invent new sponsor or disease names.
+- If no match exists, omit that filter.
+
+Apply ALL ACTIVE_SCOPE constraints.
+"""
+
+            drugs_context = "No active drug list (pipeline mode)."
+            drug_trials_rule = "" 
+
+        else:
+            drugs_df = ""
+            if state.get("drugs") is not None:
+                drugs_df = split_payload_to_df(state.get("drugs")).to_records("records")
+
+            SCOPE_BLOCK = """
+    IMPORTANT CONTEXT & SCOPE RULES (DRUG MODE):
+
+    - The list of drugs provided represents the ACTIVE and AUTHORITATIVE trial scope.
+    - You MUST restrict all clinical trial queries to these drugs.
+    - Apply ALL ACTIVE_SCOPE constraints.
+    - Reuse the provided drug list in follow-up queries.
+    - You are NOT allowed to expand beyond the provided list.
+    """
+
+            drugs_context = f"active drugs: {drugs_df}"
+            drug_trials_rule = """
+- ALWAYS USE public.drug_trials TABLE TO GET TRIAL IDS FOR A PARTICULAR DRUG.
+- DO NOT USE public.onco_pipeline_trials 
+"""
 
         SYSTEM_SQL = f"""{STAGE_PREFIX}
 
-        You are an expert ClinicalTrials.gov (AACT) analyst who writes clean, safe PostgreSQL.
+You are an expert ClinicalTrials.gov (AACT) analyst who writes clean, safe PostgreSQL.
 
-        IMPORTANT CONTEXT & SCOPE RULES (MUST FOLLOW):
+{SCOPE_BLOCK}
 
-- The list of drugs provided to you represents the ACTIVE and AUTHORITATIVE trial scope.
-- You MUST restrict all clinical trial queries to these drugs unless the user EXPLICITLY asks to change or expand the drug scope.
-- An ACTIVE TRIAL SCOPE with non-drug constraints is also provided.
-- You MUST apply ALL scope constraints to every query.
-- If the user asks a follow-up or drill-down question (e.g., outcomes, arms, phases) WITHOUT mentioning drugs, you MUST reuse the provided drug list.
-- You are NOT allowed to infer, assume, or expand to additional drugs or trial scope beyond the provided list.
-
-active drugs: {drugs_df}
+{drugs_context}
 ACTIVE_SCOPE = {json.dumps(state.get("active_trial_scope", []), indent=2)}
+
 
 SQL query generation Rules:
 - Output ONE SQL query only (no commentary, no code fences).
@@ -320,14 +389,11 @@ SQL query generation Rules:
 - ALWAYS CHECK data types of columns BEFORE joining tables.
 - ALWAYS CHECK which columns are asked by the use and return all of them.
 - ALWAYS CAST ALL types of id to varchar.
+- ALWAYS apply 'SELECT DISTINCT' on the final query.
 - Always inline all literal values directly in the SQL.
 - Never use parameters or placeholders of any kind (no :param, @param, ?, $1, etc.).
 - If the question lists multiple drug names, inline them in the SQL using an IN 
-- ALWAYS USE public.drug_trials TABLE TO GET TRIAL IDS FOR A PARTICULAR DRUG. 
-- Guidelines for pipeline drug related queries:
-    - If the question mentions pipeline/upcoming drugs -> extract data from public.onco_pipeline_trials
-    - Ignore the `drugs` list provided.
-    - For PRO queries related to pipeline drugs use public.design_outcomes_pro table.
+{drug_trials_rule}
 - DO NOT USE PRO related tables unless user explicitly mentions.
 - Guidelines for endpoint/ outcome related queries
     - Endpoints mean outcomes.
@@ -375,7 +441,7 @@ Validator feedback:
 
 """
         msgs = [SystemMessage(SYSTEM_SQL), HumanMessage(state["question"])]
-        raw_sql = llm.invoke(msgs).content.strip()
+        raw_sql = llm_default.invoke(msgs).content.strip()
         state["sql"] = clean_sql(raw_sql)
         return state
 

@@ -129,9 +129,9 @@ def get_apps(default_limit:int):
     marketaccess_catalog  = load_json("marketaccess_schema_catalog",  "marketaccess_schema_catalog.json")
 
     aact_sample_queries = load_json("clinicaltrials_sample_queries",  "clinicaltrials_sample_queries.json")
-
+    
     faers_app = build_fdaers_agent(catalog = faers_catalog,default_limit=default_limit)
-    aact_app  = build_clinicaltrials_agent(aact_catalog,  aact_sample_queries,default_limit=default_limit)
+    aact_app  = build_clinicaltrials_agent(catalog = aact_catalog,sample_queries=  aact_sample_queries,default_limit=default_limit)
     pricing_app  = build_pricing_agent(pricing_catalog,  default_limit=default_limit,safe_mode=safe_mode)
     marketaccess_app  = build_marketaccess_agent(marketaccess_catalog,  default_limit=default_limit,safe_mode=safe_mode)
 

@@ -3,7 +3,7 @@
   "description": "Pricing Schema Catalog",
   "tables": [
     {
-      "name": "pricing_calculations_all",
+      "name": "annual_pricing_table",
       "description": "Pricing Data for brand names",
       "primary_key": [
         "ndc"
@@ -20,14 +20,19 @@
           "description": "disease related to the drug dosing"
         },
         {
-          "name": "wac_unit_effective_date",
-          "type": "datetime",
-          "description": "date for update of wac unit price which is used to calculate annual cost"
+          "name": "dosage_form",
+          "type": "varchar",
+          "description": "dosage form of the drug"
         },
         {
-          "name": "total_cost_of_therapy",
+          "name": "quarter_start",
+          "type": "datetime",
+          "description": "date quarter for update of wac unit price which is used to calculate annual cost"
+        },
+        {
+          "name": "total_cost_filled",
           "type": "numeric",
-          "description": "total annual cost of the drug for the specific NDC code"
+          "description": "total annual cost of the drug for the specific dosage form and date quarter"
         }
       ]
     },

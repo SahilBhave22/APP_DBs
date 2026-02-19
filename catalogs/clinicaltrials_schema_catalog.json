@@ -203,7 +203,7 @@
         {
           "name": "sponsor_name",
           "type": "character varying",
-          "description": "Some possible values: AbbVie, Amgen, AstraZeneca, Bayer, BeiGene, Boehringer Ingelheim, Bristol-Myers Squibb, Celgene, Eli Lilly and Company, EMD Serono Research & Development Institute, Inc., Genentech, Inc., GlaxoSmithKline, Hoffmann-La Roche, Janssen Research & Development, LLC, Jazz Pharmaceuticals, Merck Sharp & Dohme LLC,  Novartis Pharmaceuticals, Pfizer, Regeneron Pharmaceuticals, Sanofi, Takeda"
+          "description": ""
         },
         {
           "name": "intervention_name",
@@ -211,7 +211,7 @@
           "description": "Name of the intervention/ drug that is studied in the trial"
         },
         {
-          "name": "conditions",
+          "name": "condition",
           "type": "character varying",
           "description": "mesh term for condition studied in the trial. Also follows medrt coding."
         }
