@@ -46,11 +46,8 @@ def build_clinicaltrials_agent(
     Returns a LangGraph app; final state has keys: sql, df, error.
     """
     #print(default_limit)
-    column_inventory = make_column_inventory(catalog)
-    join_hints = make_join_hints(catalog)
-
-    
-
+    #column_inventory = make_column_inventory(catalog)
+    #join_hints = make_join_hints(catalog)
 
     llm_default = ChatOpenAI(model=os.getenv("AACT_LLM_MODEL1", "gpt-4.1"), temperature=0,api_key=st.secrets.get("openai_api_key"))
     llm_mini = ChatOpenAI(model=os.getenv("AACT_LLM_MODEL2", "gpt-4.1-mini"), temperature=0,api_key=st.secrets.get("openai_api_key"))
@@ -73,6 +70,7 @@ def build_clinicaltrials_agent(
 
         with open("catalogs/pipeline_schema_catalog.json", "r", encoding="utf-8") as f:
                 pipeline_json =  json.load(f)
+
         pipeline_companies = pipeline_json.get("sponsor_values", [])
         pipeline_conditions = pipeline_json.get("condition_values", [])
 
@@ -143,7 +141,7 @@ def build_clinicaltrials_agent(
             merged[c["field"]] = c  # overwrite only same-field constraint
 
         state["active_trial_scope"] = list(merged.values())
-        print(state["active_trial_scope"])
+        #print(state["active_trial_scope"])
         return state
 
 
@@ -257,7 +255,7 @@ Return ONLY the label.
 
 
         resp = llm_max.invoke(classify_prompt).content.strip().lower()
-        print(resp)
+        #print(resp)
         if resp not in {"overview", "trial_details", "results"}:
             resp = "overview"
 
@@ -332,7 +330,7 @@ IMPORTANT CONTEXT & SCOPE RULES (PIPELINE MODE):
 - This is a PIPELINE query.
 - ALWAYS use public.onco_pipeline_trials as the BASE table.
 - NEVER use public.drug_trials.
-- ALWAYS return all fields in the `onco_pipeline_trials` table AND any other relevant fields.
+- MAKE SURE to include trial id, intervention_name and sponsor name fields in the `onco_pipeline_trials` table along with any other relevant fields.
 - There is NO active drug list.
 - For outcome related queries, USE `design_outcomes` table.
 

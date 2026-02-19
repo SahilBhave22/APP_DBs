@@ -41,8 +41,8 @@ def build_fdaers_agent(
     column_inventory = make_column_inventory(catalog)
     join_hints = make_join_hints(catalog)
      
-    llm = ChatOpenAI(model=os.getenv("FAERS_LLM_MODEL1", "gpt-4o"), temperature=0)
-    llm_mini = ChatOpenAI(model=os.getenv("FAERS_LLM_MODEL2", "gpt-4o-mini"), temperature=0,api_key=st.secrets.get("openai_api_key"))
+    llm = ChatOpenAI(model=os.getenv("FAERS_LLM_MODEL1", "gpt-4.1"), temperature=0)
+    llm_mini = ChatOpenAI(model=os.getenv("FAERS_LLM_MODEL2", "gpt-4.1-mini"), temperature=0,api_key=st.secrets.get("openai_api_key"))
 
 
     # -------- Nodes --------

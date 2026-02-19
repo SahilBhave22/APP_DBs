@@ -57,7 +57,7 @@ def drug_detector(state: OrchestratorState) -> OrchestratorState:
         return state
     if('pipeline' in state['question']):
         state['is_pipeline'] = True
-        
+
     if(state['is_pipeline']):
         state["drugs"] = None
         return state
@@ -350,7 +350,6 @@ def build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app,ma_app):
         return {"pricing_sql": out.get("sql"), "pricing_df": out.get("df"), "pricing_figure_json":out.get("figure_json"),
                 "pricing_error": out.get("error"), "pricing_sql_explain":out.get("sql_explain")}
 
-
     @traceable(name="MARKET ACCESS Agent")
     def call_marketaccess(state: OrchestratorState,config) -> OrchestratorState:
         if not state.get("need_ma") or state.get("call_source")=="summary_toggle":
@@ -383,8 +382,8 @@ def build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app,ma_app):
         want_summary = state.get('want_summary')
         if not want_summary:
             return {}
-        llm = ChatOpenAI(model="gpt-4o", temperature=0)
-        llm_mini = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+        llm = ChatOpenAI(model="gpt-4.1", temperature=0)
+        llm_mini = ChatOpenAI(model="gpt-4.1-mini", temperature=0)
 
         def chunk_df(df, size=500):
             return [df[i:i+size] for i in range(0, len(df), size)]
@@ -441,7 +440,7 @@ Your goals:
 6. Think as if this chunk is *part of a larger dataset*; highlight patterns that might scale.
 
 Chunk Data (JSON, full fidelity):
-{text[:30000]}
+{text}
 
 Produce a coherent summary (~200–300 words) for this chunk only.
 """
@@ -489,11 +488,13 @@ Chat History:
 
 Your goals:
 - Merge all chunk insights into a coherent end-to-end narrative.
+- DO NOT say phrases like 'unified report'
 - Identify cross-database relationships (e.g., trial signals vs. AE patterns vs. pricing).
+- If cross-database relationships are not available, DO NOT MENTION it.
 - Capture real patterns only from summaries (no hallucinations).
 - Highlight safety issues, clinical insights, pricing implications.
 - Add 1–3 recommended next steps.
-- Keep ≤2000 words.
+- Keep ≤500 words.
 
 Chunk Summaries:
 {"\n\n-----\n\n".join(all_summaries)}
@@ -503,8 +504,6 @@ Chunk Summaries:
         return {"final_answer": final_answer}
     
 
-
-    
     # ---------- Graph (parallel fan-out) ----------
     graph = StateGraph(OrchestratorState)
     graph.add_node("drug_detector", drug_detector)
