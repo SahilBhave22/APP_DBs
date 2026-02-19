@@ -55,7 +55,10 @@ def default_signals() -> Signals:
 def drug_detector(state: OrchestratorState) -> OrchestratorState:
     if(state.get('call_source')!= 'database'):
         return state
-    if('pipeline' in state.get("question")):
+    if('pipeline' in state['question']):
+        state['is_pipeline'] = True
+        
+    if(state['is_pipeline']):
         state["drugs"] = None
         return state
 
@@ -95,7 +98,7 @@ def drug_detector(state: OrchestratorState) -> OrchestratorState:
 
 def decide_next_after_entry(state: OrchestratorState) -> Literal["router", "get_relevant_drugs"]:
         
-        if('pipeline' in state.get("question")):
+        if(state['is_pipeline']):
             #state["drugs"] = None
             return "router"
         
@@ -129,7 +132,7 @@ drug manufacturer companies:
 
 Return STRICT JSON only.
 """
-    llm = ChatOpenAI(model="gpt-4o", temperature=0)
+    llm = ChatOpenAI(model="gpt-4.1", temperature=0)
     resp = llm.invoke([
             {"role": "system", "content": FETCH_RELEVANT_DRUGS_SYSTEM},
             {"role": "user", "content": FETCH_RELEVANT_DRUGS_USER},
@@ -162,7 +165,7 @@ Return STRICT JSON only.
     selected_companies = [f"%{m.lower().strip()}%" for m in out.get("selected_drug_companies")]
 
     # print(selected_classes)
-    print(selected_indications)
+    # print(selected_indications)
 
     if len(selected_classes)>0:
         where_clauses.append(
@@ -317,10 +320,11 @@ def build_orchestrator_parallel_subq(faers_app, aact_app,pricing_app,ma_app):
         s_in = {"question": subq, "sql": None, "error": None, "want_chart":want_chart,
                 "attempts": 0, "summary": None, "df": None,"call_source":state.get("call_source"),
                 "drugs":state.get('drugs'), "active_trial_scope":state.get('active_trial_scope'),
-                "criteria":state.get('criteria')}
+                "criteria":state.get('criteria'),"is_pipeline":state.get("is_pipeline")}
         out = aact_app.invoke(s_in,config = config)
         return {"aact_sql": out.get("sql"), "aact_df": out.get("df"), "aact_figure_json":out.get("figure_json"),
-                "aact_error": out.get("error"), "aact_sql_explain":out.get("sql_explain"),"active_trial_scope":out.get("active_trial_scope")}
+                "aact_error": out.get("error"), "aact_sql_explain":out.get("sql_explain"),
+                "active_trial_scope":out.get("active_trial_scope"), "is_pipeline": out.get("is_pipeline")}
     
     @traceable(name="PRICING Agent")
     def call_pricing(state: OrchestratorState,config) -> OrchestratorState:

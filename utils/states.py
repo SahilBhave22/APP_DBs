@@ -36,6 +36,7 @@ class OrchestratorState(TypedDict, total=False):
     aact_df: Optional[Dict[str, Any]] 
     aact_error: Optional[str]
     active_trial_scope: Optional[Any]
+    is_pipeline: Optional[bool]
 
     # PRICING artifacts
     pricing_sql: Optional[str]
@@ -83,3 +84,4 @@ class AgentState(TypedDict):
     criteria : Optional[List[str]]
     trial_stage : Optional[str] 
     active_trial_scope: Optional[Any]
+    is_pipeline: Optional[bool]

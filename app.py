@@ -48,6 +48,9 @@ if "drugs" not in st.session_state:
 if "active_trial_scope" not in st.session_state:
     st.session_state.active_trial_scope = []
 
+if "is_pipeline" not in st.session_state:
+    st.session_state.is_pipeline = False
+
 if "criteria" not in st.session_state:
     st.session_state.criteria = None
 
@@ -216,7 +219,8 @@ if st.button("Run", type="primary"):
                             "call_source":"database",
                             "drugs":st.session_state.drugs,
                             "criteria": st.session_state.criteria,
-                            "active_trial_scope": st.session_state.active_trial_scope
+                            "active_trial_scope": st.session_state.active_trial_scope,
+                            "is_pipeline": st.session_state.is_pipeline
 
                         }, config=cfg)
         st.session_state.current_result = out
@@ -225,6 +229,7 @@ if st.button("Run", type="primary"):
         st.session_state.drugs = out.get('drugs')
         st.session_state.criteria = out.get('criteria')
         st.session_state.active_trial_scope = out.get('active_trial_scope')
+        st.session_state.is_pipeline = out.get('is_pipeline')
         #st.session_state.aact_df
 
 out = st.session_state.get("current_result")

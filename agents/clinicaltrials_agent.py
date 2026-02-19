@@ -149,7 +149,11 @@ def build_clinicaltrials_agent(
 
     def classify_trial_stage_node(state: AgentState) -> AgentState:
         
-        if('pipeline' in state['question']):
+        
+        
+        state['is_pipeline'] = state['is_pipeline'] or ('pipeline' in state['question'].lower())
+
+        if(state['is_pipeline']):
             state['trial_stage'] = "pipeline"
             return state
 
@@ -305,7 +309,7 @@ Return ONLY the label.
 
         stage = state.get("trial_stage", "overview")
 
-        is_pipeline = 'pipeline' in state['question']
+        is_pipeline = state['is_pipeline']
         #print(is_pipeline)
         if is_pipeline:
             STAGE_PREFIX = ""
@@ -328,7 +332,9 @@ IMPORTANT CONTEXT & SCOPE RULES (PIPELINE MODE):
 - This is a PIPELINE query.
 - ALWAYS use public.onco_pipeline_trials as the BASE table.
 - NEVER use public.drug_trials.
+- ALWAYS return all fields in the `onco_pipeline_trials` table AND any other relevant fields.
 - There is NO active drug list.
+- For outcome related queries, USE `design_outcomes` table.
 
 STRICTLY USE SPONSOR COMPANY VALUES from this list (must use EXACT match):
 {sponsor_block}
@@ -399,7 +405,6 @@ SQL query generation Rules:
     - Endpoints mean outcomes.
     - BE very careful to check whether design outcomes or actual outcomes are asked.
     - DO NOT USE design outcome tables unless user SPECIFICALLY asks for it.
-    - DO NOT RETURN outcome titles, ALWAYS USE public.drug_trial_outcome_categories table.
     - To identify primary/secondary/other endpoints, ALWAYS USE either ctgov.outcomes.outcome_type or ctgov.design_outcomes.outcome_type.
     - IF outcome/ endpoint categories are asked, ALWAYS USE public.drug_trial_outcome_categories table.
     - USE PRO related tables only if the user asks for PRO or patient reported outcomes.
