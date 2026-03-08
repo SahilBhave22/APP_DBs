@@ -61,7 +61,7 @@ def revise_sql_node(state: AgentState) -> AgentState:
 def decide_next_after_revise(state: AgentState) -> Literal["revise_sql", "run_sql"]:
     # Up to 2 repairs; then try to run (or fail in run_sql if still invalid)
     
-    if state["error"] is not None and state["attempts"] < 2:
+    if state["error"] is not None and state["attempts"] < 1:
         return "revise_sql"
     return "run_sql"
 
@@ -93,7 +93,7 @@ def run_sql_node(state: AgentState,db_key:str,safe_mode=True) -> AgentState:
 def decide_next_after_run(state: AgentState) -> Literal["revise_sql", "done"]:
     # Up to 2 repairs; then try to run (or fail in run_sql if still invalid)
     
-    if state["error"] is not None and state["attempts"] < 4:
+    if state["error"] is not None and state["attempts"] < 1:
         print("revised")
         return "revise_sql"
     return "explain"

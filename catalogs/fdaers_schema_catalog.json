@@ -90,6 +90,11 @@
           "description": "Brand name of the product (if known)."
         },
         {
+          "name": "generic_name",
+          "type": "text",
+          "description": "Generic name of the product (if known)."
+        },
+        {
           "name": "role_cod",
           "type": "text",
           "description": "Role of the drug in the case. Possible values PS: Primary Suspect, SS: Secondary Suspect, C: Concominant"

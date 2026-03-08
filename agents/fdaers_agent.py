@@ -55,7 +55,12 @@ Rules:
 - Read-only: WITH/SELECT only; never DDL/DML or COPY.
 - STRICTLY Use only tables/columns that appear in the SCHEMA CATALOG below.
 - Deduplicate at the report level with COUNT(DISTINCT demo.primaryid) or COUNT(DISTINCT drug_cases.primaryid).
-- ALWAYS use table `drug_cases` to get relevant primary ids for a specific brand name 
+- ALWAYS use table `drug_cases` to get relevant primary ids for a specific drug
+ Drug filtering rules:
+- A detected drug may have drug_type = 'brand_name' or 'generic_name'.
+- If drug_type = 'brand_name', DO filtering on 'brand_name' column in public.drug_cases table.
+- If drug_type = 'generic_name', DO filtering on 'generic_name' column in public.drug_cases table.
+- If both brand and generic drugs are present, build the filter using both columns appropriately.
 - Prefer joins:
   - demo.primaryid <-> drug_cases.primaryid
   - indi.(primaryid, indi_drug_seq) <-> drug_cases.(primaryid, drug_seq)

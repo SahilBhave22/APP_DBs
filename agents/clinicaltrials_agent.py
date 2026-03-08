@@ -375,6 +375,11 @@ Apply ALL ACTIVE_SCOPE constraints.
             drug_trials_rule = """
 - ALWAYS USE public.drug_trials TABLE TO GET TRIAL IDS FOR A PARTICULAR DRUG.
 - DO NOT USE public.onco_pipeline_trials 
+
+IMPORTANT Drug filtering rules:
+- A detected drug may have drug_type = 'brand_name' or 'generic_name'.
+- IF drug_type = 'brand_name', DO filtering on 'brand_name' column in public.drug_trials table.
+- IF drug_type = 'generic_name', DO filtering on 'generic_name' column in public.drug_trials table.
 """
 
         SYSTEM_SQL = f"""{STAGE_PREFIX}
@@ -397,7 +402,9 @@ SQL query generation Rules:
 - Always inline all literal values directly in the SQL.
 - Never use parameters or placeholders of any kind (no :param, @param, ?, $1, etc.).
 - If the question lists multiple drug names, inline them in the SQL using an IN 
+- ALWAYS use ilike when matching drug names.
 {drug_trials_rule}
+- STRICTLY USE COLUMNS mentioned in the schema catalog.
 - DO NOT USE PRO related tables unless user explicitly mentions.
 - Guidelines for endpoint/ outcome related queries
     - Endpoints mean outcomes.
@@ -417,7 +424,7 @@ SQL query generation Rules:
 - ALWAYS take counts of unique nct ids.
 - Case-insensitive filters: use ILIKE for text.
 Guidance for comparative queries
-    - IF comparsion among 2 drugs is asked, make sure to add a stratification by the brand_name too.
+    - IF comparsion among 2 drugs is asked, make sure to add a stratification by the brand_name/generic_name too.
     - Always compute per-group aggregates and counts should always be of nct_id.
     - Use a window function which partitions by whatever groups are required and sorts it by count.
     - ALWAYS Filter with WHERE rank_col <= N to return top-N per group.

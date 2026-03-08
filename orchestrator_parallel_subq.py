@@ -84,7 +84,7 @@ def drug_detector(state: OrchestratorState) -> OrchestratorState:
     out_raw = re.sub(r"^```[a-zA-Z]*\n?|```$", "", resp.content).strip()
     out = json.loads(out_raw)
     
-    new_drugs_df = pd.DataFrame({'Brand Name': out.get('drugs')})
+    new_drugs_df = pd.DataFrame(out.get('drugs'))
     new_drugs = df_to_split_payload(new_drugs_df)
   
     state['drugs'] = new_drugs if len(new_drugs_df)>0 else prev_drugs
@@ -94,6 +94,7 @@ def drug_detector(state: OrchestratorState) -> OrchestratorState:
     state['user_criteria_changed'] = out.get('user_criteria_changed')
     #print(out.get('user_criteria_changed'))
     #print(out.get('rationale'))
+    print(state['drugs'])
     return state
 
 def decide_next_after_entry(state: OrchestratorState) -> Literal["router", "get_relevant_drugs"]:
@@ -491,6 +492,7 @@ Your goals:
 - DO NOT say phrases like 'unified report'
 - Identify cross-database relationships (e.g., trial signals vs. AE patterns vs. pricing).
 - If cross-database relationships are not available, DO NOT MENTION it.
+- IF data from any of the databases is absent, DO NOT MENTION ABSENCE OF DATA in the report.
 - Capture real patterns only from summaries (no hallucinations).
 - Highlight safety issues, clinical insights, pricing implications.
 - Add 1–3 recommended next steps.

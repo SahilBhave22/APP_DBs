@@ -20,6 +20,11 @@
           "name": "brand_name",
           "type": "character varying",
           "description": "Brand name for the drug"
+        },
+        {
+          "name":"generic_name",
+          "type":"character varying",
+          "description":"Generic name for the drug"
         }
       ]
     },
