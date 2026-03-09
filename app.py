@@ -239,8 +239,14 @@ if out:
         if st.button("Reset chat"):
             st.session_state.thread_id = str(uuid.uuid4())
             st.session_state.messages = []
-            if "current_result" in st.session_state:
-                del st.session_state.current_result
+
+            for k in st.session_state:
+                if k != 'logged_in':
+                    del st.session_state[k]
+            # if "current_result" in st.session_state:
+            #     del st.session_state.current_result
+            # if "curren" in st.session_state:
+            #     del st.session_state.current_result
             st.rerun()
         
         st.divider()
